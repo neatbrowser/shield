@@ -26,23 +26,23 @@ public sealed partial class FiltersPage : Page
 
     private void OnChanged(object? sender, EventArgs e) => DispatcherQueue.TryEnqueue(Refresh);
 
-    private void OnProgress(object? sender, string message) => DispatcherQueue.TryEnqueue(() => ProgressText.Text = message);
+    private void OnProgress(object? sender, string message) => DispatcherQueue.TryEnqueue(() => ProgressText.Text = Loc.Progress(message));
 
     private void Refresh()
     {
         var dir = Rt.Engine.LoadedDir ?? Rt.Filters.BestDir;
         var manifest = dir is null ? null : Rt.Filters.ReadManifest(dir);
-        VersionText.Text = manifest is null ? "Chưa có bộ lọc." : $"Phiên bản: {manifest.Version}";
+        VersionText.Text = manifest is null ? Loc.T("filters.none") : Loc.T("filters.version", manifest.Version);
         if (manifest is null)
         {
             RulesText.Text = "";
         }
         else
         {
-            RulesText.Text = $"{manifest.NetworkRules:N0} quy tắc mạng · {manifest.CosmeticRules:N0} quy tắc ẩn phần tử";
+            RulesText.Text = Loc.T("filters.rules", manifest.NetworkRules.ToString("N0"), manifest.CosmeticRules.ToString("N0"));
         }
 
-        LastCheckText.Text = Rt.LastUpdateCheck is { } t ? $"Kiểm tra lần cuối: {t:HH:mm dd/MM/yyyy}" : "Chưa kiểm tra trong lần chạy này.";
+        LastCheckText.Text = Rt.LastUpdateCheck is { } t ? Loc.T("filters.lastcheck", t.ToString("g", Loc.Culture)) : Loc.T("filters.nocheck");
         UpdateButton.IsEnabled = !Rt.IsUpdating;
         Ring.IsActive = Rt.IsUpdating;
         if (!Rt.IsUpdating) ProgressText.Text = "";
@@ -54,17 +54,17 @@ public sealed partial class FiltersPage : Page
             {
                 case UpdateStatus.Updated:
                     ResultBar.Severity = InfoBarSeverity.Success;
-                    ResultBar.Title = "Đã cập nhật";
-                    ResultBar.Message = $"Phiên bản {r.Version}";
+                    ResultBar.Title = Loc.T("filters.updated");
+                    ResultBar.Message = Loc.T("filters.updated.msg", r.Version ?? "");
                     break;
                 case UpdateStatus.UpToDate:
                     ResultBar.Severity = InfoBarSeverity.Informational;
-                    ResultBar.Title = "Đã là bản mới nhất";
+                    ResultBar.Title = Loc.T("filters.uptodate");
                     ResultBar.Message = r.Version ?? "";
                     break;
                 default:
                     ResultBar.Severity = InfoBarSeverity.Error;
-                    ResultBar.Title = "Cập nhật thất bại";
+                    ResultBar.Title = Loc.T("filters.failed");
                     ResultBar.Message = r.Error ?? "";
                     break;
             }

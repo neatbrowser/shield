@@ -13,6 +13,11 @@
   </ItemGroup>
 
   <ItemGroup>
+    <!-- The window's texts (plain C#, no WinUI types) are tested here too. -->
+    <Compile Include="..\..\src\NeatShield.App\Loc.cs" Link="Loc.cs" />
+  </ItemGroup>
+
+  <ItemGroup>
     <Content Include="data\*" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 

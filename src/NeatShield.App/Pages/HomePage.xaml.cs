@@ -37,11 +37,11 @@ public sealed partial class HomePage : Page
         var state = Rt.State;
         var (color, title, sub) = state switch
         {
-            ProtectionState.On => (Color.FromArgb(255, 0, 150, 112), "Bảo vệ đang bật",
-                $"Chặn quảng cáo và theo dõi cho trình duyệt và ứng dụng của bạn. Bộ lọc: {Rt.Engine.LoadedVersion ?? "chưa có"}."),
-            ProtectionState.Starting => (Color.FromArgb(255, 200, 150, 0), "Đang bật bảo vệ…", ""),
-            ProtectionState.Error => (Color.FromArgb(255, 192, 57, 43), "Không bật được bảo vệ", Rt.Error ?? ""),
-            _ => (Color.FromArgb(255, 140, 150, 160), "Bảo vệ đang tắt", "Bật để chặn quảng cáo và theo dõi."),
+            ProtectionState.On => (Color.FromArgb(255, 0, 150, 112), Loc.T("home.on"),
+                Loc.T("home.on.sub", Rt.Engine.LoadedVersion ?? Loc.T("home.nofilters.value"))),
+            ProtectionState.Starting => (Color.FromArgb(255, 200, 150, 0), Loc.T("home.starting.title"), ""),
+            ProtectionState.Error => (Color.FromArgb(255, 192, 57, 43), Loc.T("home.error"), Rt.Error ?? ""),
+            _ => (Color.FromArgb(255, 140, 150, 160), Loc.T("home.off"), Loc.T("home.off.sub")),
         };
 
         Disc.Fill = new SolidColorBrush(color);
@@ -53,6 +53,8 @@ public sealed partial class HomePage : Page
         _updatingToggle = true;
         Toggle.IsOn = state is ProtectionState.On or ProtectionState.Starting;
         Toggle.IsEnabled = state != ProtectionState.Starting;
+        Toggle.OnContent = Loc.T("on");
+        Toggle.OffContent = Loc.T("off");
         _updatingToggle = false;
 
         // Messages that need an action from the user.
@@ -60,16 +62,16 @@ public sealed partial class HomePage : Page
         if (cert)
         {
             Banner.Severity = InfoBarSeverity.Warning;
-            Banner.Title = "Cần chứng chỉ NeatShield để lọc trang HTTPS";
-            Banner.Message = "Windows sẽ hỏi bạn xác nhận khi cài chứng chỉ. Chứng chỉ được tạo trên máy này và khóa riêng không rời khỏi máy.";
+            Banner.Title = Loc.T("home.cert.title");
+            Banner.Message = Loc.T("home.cert.msg");
             BannerButton.Visibility = Visibility.Visible;
             Banner.IsOpen = true;
         }
         else if (Rt.Engine.Current is null && !Rt.IsUpdating)
         {
             Banner.Severity = InfoBarSeverity.Informational;
-            Banner.Title = "Chưa có bộ lọc";
-            Banner.Message = "Mở trang Bộ lọc và bấm Cập nhật ngay.";
+            Banner.Title = Loc.T("home.nofilters.title");
+            Banner.Message = Loc.T("home.nofilters.msg");
             BannerButton.Visibility = Visibility.Collapsed;
             Banner.IsOpen = true;
         }

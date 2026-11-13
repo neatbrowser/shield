@@ -23,6 +23,21 @@ $out = Join-Path $root "dist/$Arch"
 dotnet run --project tests/NeatShield.Core.Tests -c $Configuration
 if ($LASTEXITCODE -ne 0) { throw 'Tests failed.' }
 
+# Tests of the script that is injected into pages (needs Node.js; skipped when it is not installed).
+if (Get-Command npm -ErrorAction SilentlyContinue) {
+    Push-Location (Join-Path $root 'tests/js')
+    try {
+        npm ci --no-audit --no-fund
+        if ($LASTEXITCODE -ne 0) { throw 'npm ci failed.' }
+        npm test
+        if ($LASTEXITCODE -ne 0) { throw 'The page-script tests failed.' }
+    }
+    finally { Pop-Location }
+}
+else {
+    Write-Warning 'Node.js was not found: skipping the page-script tests (tests/js).'
+}
+
 dotnet publish src/NeatShield.App -c $Configuration -r $rid -p:Platform=$platform -o $out
 dotnet publish src/NeatShield.Cli -c $Configuration -r $rid --self-contained false -o "$out/cli"
 Write-Host "Built: $out\NeatShield.exe"

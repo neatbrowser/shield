@@ -14,6 +14,10 @@
   </ItemGroup>
 
   <ItemGroup>
+    <EmbeddedResource Include="Proxy\Assets\runtime.js" LogicalName="NeatShield.runtime.js" />
+  </ItemGroup>
+
+  <ItemGroup>
     <InternalsVisibleTo Include="NeatShield.Core.Tests" />
   </ItemGroup>
 

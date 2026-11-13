@@ -30,7 +30,7 @@ public sealed class ShieldRuntime : IDisposable
         Log.Init(Paths.LogDir);
         Settings = new SettingsStore(Paths.SettingsFile);
         Filters = new FilterStore(Paths);
-        Engine = new EngineHost(Paths, Filters);
+        Engine = new EngineHost(Paths, Filters, () => Settings.Current.CustomFilters);
         Stats = new StatsCollector(Paths.StatsFile);
         SystemProxy = new SystemProxy(Paths.ProxyBackupFile);
         Proxy = new ProxyService(Settings, Engine, Stats);
@@ -165,6 +165,17 @@ public sealed class ShieldRuntime : IDisposable
 
     private void OnSettingsChanged(object? sender, EventArgs e)
     {
+        // The user's own rules changed: build the engine again (in the background; the old one keeps working).
+        if (!string.Equals(Engine.LoadedCustomRules, Settings.Current.CustomFilters, StringComparison.Ordinal) && Engine.LoadedDir is not null)
+        {
+            _ = Task.Run(async () =>
+            {
+                try { await Engine.ReloadAsync(); }
+                catch (Exception ex) { Log.Error($"reload after custom rules change: {ex.Message}"); }
+                Raise();
+            });
+        }
+
         // A new port needs a restart of the proxy while it is running (not while we are switching it ourselves).
         if (_toggle.CurrentCount == 1 && State == ProtectionState.On && Proxy.Port != Settings.Current.Port)
         {

@@ -6,6 +6,7 @@ using NeatShield.Core.Proxy;
 using NeatShield.Core.Security;
 using NeatShield.Core.Settings;
 int fail = 0;
+
 void Eq<T>(T exp, T act, string name){ if(!EqualityComparer<T>.Default.Equals(exp,act)){fail++;Console.WriteLine($"FAIL {name}: expected [{exp}] got [{act}]");} else Console.WriteLine($"ok   {name}"); }
 Func<Dictionary<string,string>,Func<string,string?>> H = d => k => d.TryGetValue(k,out var v)?v:null;
 Eq("script", RequestClassifier.Classify("https://a.com/x", H(new(){["Sec-Fetch-Dest"]="script"})), "dest script");
@@ -101,5 +102,101 @@ Eq("https://news.example/", pop(new(){["Accept"]="text/html",["Referer"]="https:
 Eq("NO", pop(new(){["Accept"]="text/html",["Referer"]="https://www.ads.example/p"}), "old browser: same site");
 Eq("NO", pop(new(){["Accept"]="text/html"}), "old browser: no referer");
 Eq(true, HostRules.IsExcluded("sub.good.com", new[]{"good.com"}) && !HostRules.IsExcluded("good.org", new[]{"good.com"}), "IsExcluded");
+
+// ---- cosmetic builder ----
+var cj = """{"hide_selectors":[".a","b{x}"],"procedural_actions":["{\"selector\":[{\"type\":\"css-selector\",\"arg\":\".p1\"}]}","{\"selector\":[{\"type\":\"css-selector\",\"arg\":\".p2\"}],\"action\":{\"type\":\"style\",\"arg\":\"margin: 0 !important\"}}","{\"selector\":[{\"type\":\"css-selector\",\"arg\":\".p3\"},{\"type\":\"has-text\",\"arg\":\"</script><b>x\"}]}","{\"selector\":[{\"type\":\"css-selector\",\"arg\":\".p4\"}],\"action\":{\"type\":\"remove\"}}","not json"],"exceptions":[".ex"],"injected_script":"window.__s=1;","generichide":false}""";
+var ep = CosmeticBuilder.EndpointFor("https://a.com/");
+var pl = CosmeticBuilder.Build(cj, "N0nce", ep);
+Eq("https://neatshield.invalid/__ns/hidden", ep, "endpoint https");
+Eq("http://neatshield.invalid/__ns/hidden", CosmeticBuilder.EndpointFor("http://a.com/"), "endpoint http");
+Eq(true, pl.Css.Contains(".a{display:none!important}") && !pl.Css.Contains("b{x}"), "css hide selectors");
+Eq(true, pl.Css.Contains(".p1{display:none!important}") && pl.Css.Contains(".p2{margin: 0 !important}"), "pure-css procedural -> css");
+Eq(2, pl.ProceduralRules, "js rules = has-text + remove");
+Eq(2, pl.Scripts.Count, "scriptlet + runtime");
+Eq("window.__s=1;", pl.Scripts[0], "scriptlet first");
+Eq(true, pl.Scripts[1].Contains("\"endpoint\":\"https://neatshield.invalid/__ns/hidden\"") && pl.Scripts[1].Contains("\"generic\":true"), "runtime config");
+Eq(false, pl.Scripts[1].Contains("</script"), "no closing script tag leaks from rule text");
+var block = HtmlInjector.BuildBlock(pl.Css, pl.Scripts, "N0nce");
+Eq(2, System.Text.RegularExpressions.Regex.Matches(block, "<script nonce").Count, "one tag per script");
+var gh = CosmeticBuilder.Build("""{"hide_selectors":[],"procedural_actions":[],"exceptions":[],"injected_script":"","generichide":true}""", "n", ep);
+Eq(true, gh.IsEmpty, "generichide + no rules -> nothing");
+var onlyGeneric = CosmeticBuilder.Build("""{"hide_selectors":[],"procedural_actions":[],"exceptions":[],"injected_script":"","generichide":false}""", "n", ep);
+Eq(true, onlyGeneric.Scripts.Count == 1 && onlyGeneric.Generic, "generic only -> runtime only");
+Eq(true, CosmeticBuilder.Build("", "n", ep).IsEmpty && CosmeticBuilder.Build(null, "n", ep).IsEmpty, "empty json");
+
+var hr = CosmeticBuilder.ParseHiddenRequest("""{"classes":["a","b",1,""],"ids":["x"],"exceptions":[".e"]}""");
+Eq("[\"a\",\"b\"]", hr?.Classes, "hidden request classes");
+Eq("[\"x\"]", hr?.Ids, "hidden request ids");
+Eq(true, CosmeticBuilder.ParseHiddenRequest("nope") is null && CosmeticBuilder.ParseHiddenRequest("[1]") is null, "hidden request bad");
+Eq("[\"x\"]", CosmeticBuilder.ParseHiddenRequest("{\"classes\":[\"" + new string('z', 201) + "\",\"x\"]}")?.Classes, "long names dropped");
+
+// ---- csp connect ----
+var origin = "https://neatshield.invalid";
+Eq("default-src 'self' https://neatshield.invalid", CspNonce.AllowConnect("default-src 'self'", origin), "connect via default-src");
+Eq("connect-src 'self' https://neatshield.invalid; img-src *", CspNonce.AllowConnect("connect-src 'self'; img-src *", origin).Replace(";  ", "; "), "connect-src");
+Eq("img-src *", CspNonce.AllowConnect("img-src *", origin), "no connect/default: unchanged");
+Eq("connect-src *", CspNonce.AllowConnect("connect-src *", origin), "wildcard unchanged");
+Eq(true, CspNonce.AllowConnect("connect-src 'none'", origin).Contains(origin) && !CspNonce.AllowConnect("connect-src 'none'", origin).Contains("'none'"), "none replaced");
+
+// ---- custom filters ----
+var cm = FilterManifest.Parse(Encoding.UTF8.GetBytes(ComposedRelease.ComposeManifestForTest(sample, "||x.example^\n")));
+Eq(true, cm.Files.Any(f => f.Name == "custom.txt"), "composed manifest lists custom.txt");
+var tmpRel = Path.Combine(Path.GetTempPath(), "ns-rel-" + Guid.NewGuid().ToString("N")[..6]);
+Directory.CreateDirectory(tmpRel);
+File.WriteAllBytes(Path.Combine(tmpRel, "manifest.json"), sample);
+File.WriteAllText(Path.Combine(tmpRel, "a.txt"), "a");
+var comp = Path.Combine(tmpRel, "..", "ns-comp-" + Guid.NewGuid().ToString("N")[..6]);
+Eq(tmpRel, ComposedRelease.Build(tmpRel, "   \n", comp), "no custom rules -> same dir");
+var d1 = ComposedRelease.Build(tmpRel, "||x.example^\r\n", comp);
+Eq(true, File.Exists(Path.Combine(d1, "a.txt")) && File.ReadAllText(Path.Combine(d1, "custom.txt")) == "||x.example^\n", "composed dir content");
+Eq(d1, ComposedRelease.Build(tmpRel, "||x.example^\n", comp), "same rules -> same dir (reused)");
+var d2 = ComposedRelease.Build(tmpRel, "||y.example^\n", comp);
+Eq(true, d1 != d2 && !Directory.Exists(d1) && Directory.Exists(d2), "changed rules -> new dir, old pruned");
+Eq(true, File.ReadAllBytes(Path.Combine(tmpRel, "manifest.json")).SequenceEqual(sample), "release manifest untouched");
+var st2 = new AppSettings { CustomFilters = "a\r\nb" + new string('x', 300000) };
+st2.Normalize();
+Eq(true, st2.CustomFilters.StartsWith("a\nb") && st2.CustomFilters.Length == AppSettings.MaxCustomFiltersLength, "custom filters normalized+capped");
+Eq("", new AppSettings { Language = "fr" }.Also(x => x.Normalize()).Language, "language normalized");
+// ---- pages in two languages ----
+var bp = PageText.BlockedPage("https://evil.example/<script>alert(1)</script>", "en");
+Eq(true, bp.Contains("lang=\"en\"") && bp.Contains("This page was blocked") && !bp.Contains("<script>alert"), "blocked page en, url encoded");
+Eq(true, PageText.BlockedPage("https://a.example/", "vi").Contains("Trang này đã bị chặn"), "blocked page vi");
+Eq(true, PageText.BlockedPage("https://a.example/" + new string('a', 500), "en").Length < 3000, "blocked page url shortened");
+var pp = PageText.PopupPage("https://pop.example/", "en");
+Eq(true, pp.Contains("Pop-up blocked by NeatShield") && pp.Contains("window.close()"), "popup page en");
+Eq(true, PageText.PopupPage("https://pop.example/", "vi").Contains("Đã chặn popup"), "popup page vi");
+Eq("vi", new AppSettings { Language = "vi" }.EffectiveLanguage, "language vi");
+Eq("en", new AppSettings { Language = "en" }.EffectiveLanguage, "language en");
+Eq(true, new AppSettings().EffectiveLanguage is "vi" or "en", "language auto");
+
+// ---- window texts ----
+var texts = (System.Collections.IDictionary)typeof(NeatShield.App.Loc).GetField("Texts", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static)!.GetValue(null)!;
+var badTexts = new List<string>();
+foreach (System.Collections.DictionaryEntry de in texts)
+{
+    var (vi, en) = ((string, string))de.Value!;
+    var ph = new Func<string, string>(t => string.Join(",", System.Text.RegularExpressions.Regex.Matches(t, @"\{\d+\}").Select(m => m.Value).OrderBy(x => x)));
+    if (string.IsNullOrWhiteSpace(vi) || string.IsNullOrWhiteSpace(en) || ph(vi) != ph(en)) badTexts.Add((string)de.Key);
+}
+Eq("", string.Join(" ", badTexts), "every text has vi+en with same placeholders");
+NeatShield.App.Loc.Language = "vi";
+Eq("Bộ lọc", NeatShield.App.Loc.T("nav.filters"), "Loc vi");
+NeatShield.App.Loc.Language = "en";
+Eq("Filters", NeatShield.App.Loc.T("nav.filters"), "Loc en");
+Eq("no.such.key", NeatShield.App.Loc.T("no.such.key"), "Loc unknown key");
+Eq("Version: 7", NeatShield.App.Loc.T("filters.version", 7), "Loc format");
+Eq("Downloading a.txt (2/5)...", NeatShield.App.Loc.Progress("Downloading a.txt (2/5)..."), "progress en");
+NeatShield.App.Loc.Language = "vi";
+Eq("Đang tải a.txt (2/5)...", NeatShield.App.Loc.Progress("Downloading a.txt (2/5)..."), "progress vi");
+Eq("Đang tải manifest.json...", NeatShield.App.Loc.Progress("Downloading manifest.json..."), "progress manifest vi");
+Eq("something else", NeatShield.App.Loc.Progress("something else"), "progress passthrough");
+var langChanged = 0;
+EventHandler onLang = (_, _) => langChanged++;
+NeatShield.App.Loc.Changed += onLang;
+NeatShield.App.Loc.Language = "vi"; NeatShield.App.Loc.Language = "en"; NeatShield.App.Loc.Language = "en";
+NeatShield.App.Loc.Changed -= onLang;
+Eq(1, langChanged, "Loc.Changed only on a real change");
 Console.WriteLine(fail==0?"ALL OK":$"{fail} FAILED");
 return fail;
+
+static class Ext { public static T Also<T>(this T x, Action<T> a) { a(x); return x; } }

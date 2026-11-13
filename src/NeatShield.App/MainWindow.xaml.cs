@@ -27,6 +27,18 @@ public sealed partial class MainWindow : Window
 
         AppWindow.Closing += OnClosing;
         Nav.SelectedItem = Nav.MenuItems[0];
+        Loc.Changed += (_, _) => DispatcherQueue.TryEnqueue(Relocalize);
+    }
+
+    /// <summary>The language was changed: new texts in the menu, and the open page is built again.</summary>
+    private void Relocalize()
+    {
+        foreach (var item in Nav.MenuItems.Concat(Nav.FooterMenuItems))
+        {
+            if (item is DependencyObject d) L.Apply(d);
+        }
+
+        if (ContentFrame.CurrentSourcePageType is { } page) ContentFrame.Navigate(page);
     }
 
     private void OnClosing(AppWindow sender, AppWindowClosingEventArgs args)
@@ -50,6 +62,7 @@ public sealed partial class MainWindow : Window
         var page = tag switch
         {
             "filters" => typeof(FiltersPage),
+            "custom" => typeof(CustomFiltersPage),
             "stats" => typeof(StatsPage),
             "settings" => typeof(SettingsPage),
             _ => typeof(HomePage),

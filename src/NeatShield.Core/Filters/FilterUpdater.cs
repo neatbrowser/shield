@@ -40,10 +40,10 @@ public sealed class FilterUpdater
             if (!Uri.TryCreate(baseUrl.EndsWith('/') ? baseUrl : baseUrl + "/", UriKind.Absolute, out var baseUri) ||
                 baseUri.Scheme != Uri.UriSchemeHttps)
             {
-                return new UpdateResult(UpdateStatus.Failed, null, null, "Địa chỉ bộ lọc phải bắt đầu bằng https://");
+                return new UpdateResult(UpdateStatus.Failed, null, null, "The filter address must start with https://");
             }
 
-            progress?.Report("Đang tải manifest.json...");
+            progress?.Report("Downloading manifest.json...");
             var manifestBytes = await DownloadSmallAsync(new Uri(baseUri, "manifest.json"), ct).ConfigureAwait(false);
             var manifest = FilterManifest.Parse(manifestBytes);
             manifest.Validate();
@@ -92,7 +92,7 @@ public sealed class FilterUpdater
 
                 if (!reused)
                 {
-                    progress?.Report($"Đang tải {file.Name} ({done}/{manifest.Files.Count})...");
+                    progress?.Report($"Downloading {file.Name} ({done}/{manifest.Files.Count})...");
                     await DownloadVerifiedAsync(new Uri(baseUri, Uri.EscapeDataString(file.Name)), dest, file, ct).ConfigureAwait(false);
                 }
             }

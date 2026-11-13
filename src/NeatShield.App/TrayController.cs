@@ -13,6 +13,9 @@ public sealed class TrayController : IDisposable
     private readonly ShieldRuntime _runtime;
     private readonly TaskbarIcon _icon;
     private readonly MenuFlyoutItem _toggleItem;
+    private MenuFlyoutItem _updateItem = null!;
+    private MenuFlyoutItem _openItem = null!;
+    private MenuFlyoutItem _quitItem = null!;
     private System.Drawing.Icon? _on;
     private System.Drawing.Icon? _off;
 
@@ -25,24 +28,27 @@ public sealed class TrayController : IDisposable
         _on = LoadIcon(Path.Combine(assets, "neatshield.ico"));
         _off = LoadIcon(Path.Combine(assets, "neatshield-off.ico"));
 
-        var open = new MenuFlyoutItem { Text = "Mở NeatShield" };
+        var open = new MenuFlyoutItem { Text = Loc.T("tray.open") };
         open.Click += (_, _) => _window.ShowAndFocus();
 
-        _toggleItem = new MenuFlyoutItem { Text = "Tắt bảo vệ" };
+        _toggleItem = new MenuFlyoutItem { Text = Loc.T("tray.pause") };
         _toggleItem.Click += async (_, _) =>
         {
             try { await _runtime.SetProtectionAsync(_runtime.State != ProtectionState.On); }
             catch (Exception ex) { Log.Error("tray toggle: " + ex); }
         };
 
-        var update = new MenuFlyoutItem { Text = "Cập nhật bộ lọc" };
+        _updateItem = new MenuFlyoutItem { Text = Loc.T("tray.update") };
+        var update = _updateItem;
         update.Click += async (_, _) =>
         {
             try { await _runtime.UpdateFiltersAsync(); }
             catch (Exception ex) { Log.Error("tray update: " + ex); }
         };
 
-        var quit = new MenuFlyoutItem { Text = "Thoát NeatShield" };
+        _openItem = open;
+        var quit = new MenuFlyoutItem { Text = Loc.T("tray.quit") };
+        _quitItem = quit;
         quit.Click += (_, _) => exit();
 
         var menu = new MenuFlyout();
@@ -66,14 +72,18 @@ public sealed class TrayController : IDisposable
         _icon.ForceCreate();
 
         _runtime.Changed += (_, _) => _window.DispatcherQueue.TryEnqueue(Refresh);
+        Loc.Changed += (_, _) => _window.DispatcherQueue.TryEnqueue(Refresh);
         Refresh();
     }
 
     private void Refresh()
     {
         var on = _runtime.State == ProtectionState.On;
-        _icon.ToolTipText = on ? "NeatShield — đang bảo vệ" : "NeatShield — đã tắt";
-        _toggleItem.Text = on ? "Tắt bảo vệ" : "Bật bảo vệ";
+        _icon.ToolTipText = Loc.T(on ? "tray.tip.on" : "tray.tip.off");
+        _toggleItem.Text = Loc.T(on ? "tray.pause" : "tray.resume");
+        _openItem.Text = Loc.T("tray.open");
+        _updateItem.Text = Loc.T("tray.update");
+        _quitItem.Text = Loc.T("tray.quit");
         var icon = on ? _on : _off;
         if (icon is not null) _icon.Icon = icon;
     }

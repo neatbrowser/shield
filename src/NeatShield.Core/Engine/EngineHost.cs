@@ -14,12 +14,15 @@ public sealed class EngineHost : IDisposable
     private readonly AppPaths _paths;
     private readonly FilterStore _store;
     private readonly SemaphoreSlim _loadGate = new(1, 1);
+    private readonly Func<string> _customRules;
     private AdblockEngine? _engine;
 
-    public EngineHost(AppPaths paths, FilterStore store)
+    /// <param name="customRules">Gives the user's own filter rules (may be empty). Read at every load.</param>
+    public EngineHost(AppPaths paths, FilterStore store, Func<string>? customRules = null)
     {
         _paths = paths;
         _store = store;
+        _customRules = customRules ?? (() => "");
     }
 
     /// <summary>Engine in use, or null before the first load.</summary>
@@ -27,7 +30,11 @@ public sealed class EngineHost : IDisposable
 
     public string? LoadedVersion { get; private set; }
 
+    /// <summary>The release folder that was loaded (without the user's rules).</summary>
     public string? LoadedDir { get; private set; }
+
+    /// <summary>The user's rules that were part of the last load.</summary>
+    public string LoadedCustomRules { get; private set; } = "";
 
     public bool LoadedFromCache { get; private set; }
 
@@ -35,28 +42,49 @@ public sealed class EngineHost : IDisposable
 
     public event EventHandler? EngineChanged;
 
+    /// <summary>Loads the current release again, e.g. after the user's rules changed.</summary>
+    public Task ReloadAsync(CancellationToken ct = default) =>
+        LoadedDir is { } dir ? LoadAsync(dir, ct) : Task.CompletedTask;
+
     public async Task LoadAsync(string releaseDir, CancellationToken ct = default)
     {
         await _loadGate.WaitAsync(ct).ConfigureAwait(false);
         try
         {
-            var manifestBytes = await File.ReadAllBytesAsync(Path.Combine(releaseDir, "manifest.json"), ct).ConfigureAwait(false);
+            var custom = _customRules() ?? "";
+            var loadDir = releaseDir;
+            if (!string.IsNullOrWhiteSpace(custom))
+            {
+                try
+                {
+                    loadDir = await Task.Run(() => ComposedRelease.Build(releaseDir, custom, Path.Combine(_paths.CacheDir, "composed")), ct).ConfigureAwait(false);
+                }
+                catch (Exception ex)
+                {
+                    // The filters still work without the user's rules.
+                    Log.Error($"custom rules could not be added: {ex.Message}");
+                    custom = "";
+                }
+            }
+
+            var manifestBytes = await File.ReadAllBytesAsync(Path.Combine(loadDir, "manifest.json"), ct).ConfigureAwait(false);
             var key = Convert.ToHexString(SHA256.HashData(manifestBytes));
             var cachePath = Path.Combine(_paths.CacheDir, "engine.cache");
 
             var started = DateTime.UtcNow;
             var fromCache = false;
-            var engine = await Task.Run(() => AdblockEngine.Load(releaseDir, cachePath, key, out fromCache), ct).ConfigureAwait(false);
+            var engine = await Task.Run(() => AdblockEngine.Load(loadDir, cachePath, key, out fromCache), ct).ConfigureAwait(false);
             LastLoadTime = DateTime.UtcNow - started;
 
             var version = _store.ReadManifest(releaseDir)?.Version;
             var old = Interlocked.Exchange(ref _engine, engine);
             LoadedVersion = version;
             LoadedDir = releaseDir;
+            LoadedCustomRules = custom;
             LoadedFromCache = fromCache;
             old?.Dispose();
 
-            Log.Info($"engine loaded from {releaseDir} (version {version}, {(fromCache ? "cache" : "lists")}, {LastLoadTime.TotalSeconds:F1}s)");
+            Log.Info($"engine loaded from {releaseDir} (version {version}, {(string.IsNullOrWhiteSpace(custom) ? "no custom rules" : "with custom rules")}, {(fromCache ? "cache" : "lists")}, {LastLoadTime.TotalSeconds:F1}s)");
             EngineChanged?.Invoke(this, EventArgs.Empty);
 
             if (!fromCache)

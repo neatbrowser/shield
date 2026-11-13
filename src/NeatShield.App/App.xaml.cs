@@ -42,6 +42,7 @@ public partial class App : Application
 
         var bundled = Path.Combine(AppContext.BaseDirectory, "filters");
         Runtime = new ShieldRuntime(bundledFilters: bundled);
+        Loc.Language = Runtime.Settings.Current.EffectiveLanguage;
         _window = new MainWindow();
         _tray = new TrayController(_window, Runtime, ExitApp);
         _window.CloseToTray = () => !_exiting;

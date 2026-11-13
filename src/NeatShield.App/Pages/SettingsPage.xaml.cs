@@ -14,6 +14,7 @@ public sealed partial class SettingsPage : Page
     private void Page_Loaded(object sender, RoutedEventArgs e)
     {
         var s = Rt.Settings.Current;
+        LanguageBox.SelectedIndex = s.Language switch { "vi" => 1, "en" => 2, _ => 0 };
         StartWithWindows.IsOn = s.StartWithWindows;
         StartMinimized.IsOn = s.StartMinimized;
         AutoUpdate.IsOn = s.AutoUpdate;
@@ -35,8 +36,10 @@ public sealed partial class SettingsPage : Page
         var interval = double.IsNaN(Interval.Value) ? 6 : (int)Interval.Value;
         var port = double.IsNaN(Port.Value) ? 8877 : (int)Port.Value;
 
+        var language = (LanguageBox.SelectedItem as ComboBoxItem)?.Tag as string ?? "";
         Rt.Settings.Update(s =>
         {
+            s.Language = language;
             s.StartWithWindows = StartWithWindows.IsOn;
             s.StartMinimized = StartMinimized.IsOn;
             s.AutoUpdate = AutoUpdate.IsOn;
@@ -49,15 +52,18 @@ public sealed partial class SettingsPage : Page
         });
 
         StartupRegistration.Set(StartWithWindows.IsOn, Environment.ProcessPath ?? "");
-        SavedText.Text = "Đã lưu lúc " + DateTime.Now.ToString("HH:mm:ss");
+        var changedLanguage = Loc.Language != Rt.Settings.Current.EffectiveLanguage;
+        Loc.Language = Rt.Settings.Current.EffectiveLanguage; // re-draws the window when it changed
+        if (changedLanguage) return;
+        SavedText.Text = Loc.T("settings.saved", DateTime.Now.ToString("HH:mm:ss"));
     }
 
     private void RefreshCert()
     {
         var c = Rt.Certificate.GetStatus();
         CertText.Text = !c.Exists
-            ? "Chưa tạo chứng chỉ. Nó sẽ được tạo khi bạn bật bảo vệ lần đầu."
-            : $"{(c.Trusted ? "Đã được Windows tin cậy" : "CHƯA được tin cậy")} · hết hạn {c.Expires:dd/MM/yyyy}";
+            ? Loc.T("settings.cert.none")
+            : Loc.T(c.Trusted ? "settings.cert.trusted" : "settings.cert.untrusted", c.Expires?.ToString("d", Loc.Culture) ?? "?");
     }
 
     private async void InstallCert_Click(object sender, RoutedEventArgs e)
@@ -68,7 +74,7 @@ public sealed partial class SettingsPage : Page
         }
         catch (Exception ex)
         {
-            CertText.Text = "Không cài được: " + ex.Message;
+            CertText.Text = Loc.T("settings.cert.installfail", ex.Message);
             return;
         }
 
@@ -88,7 +94,7 @@ public sealed partial class SettingsPage : Page
         }
         catch (Exception ex)
         {
-            CertText.Text = "Không gỡ được: " + ex.Message;
+            CertText.Text = Loc.T("settings.cert.removefail", ex.Message);
             return;
         }
 
@@ -104,7 +110,7 @@ public sealed partial class SettingsPage : Page
         }
         catch (Exception ex)
         {
-            CertText.Text = "Không mở được thư mục: " + ex.Message;
+            CertText.Text = Loc.T("settings.cert.folderfail", ex.Message);
         }
     }
 
@@ -112,6 +118,6 @@ public sealed partial class SettingsPage : Page
     {
         await Rt.SetProtectionAsync(false);
         Rt.SystemProxy.Restore();
-        ResetText.Text = "Đã trả lại cài đặt proxy. Bảo vệ đang tắt.";
+        ResetText.Text = Loc.T("settings.resetdone");
     }
 }

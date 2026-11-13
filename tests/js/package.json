@@ -1,0 +1,7 @@
+{
+  "name": "neatshield-runtime-tests",
+  "private": true,
+  "description": "Tests of src/NeatShield.Core/Proxy/Assets/runtime.js (the script injected into pages) in jsdom.",
+  "scripts": { "test": "node --test runtime.test.js" },
+  "devDependencies": { "jsdom": "24.1.3" }
+}

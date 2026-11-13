@@ -22,15 +22,13 @@ public sealed partial class StatsPage : Page
     private void Refresh()
     {
         var s = App.Runtime.Stats.Snapshot();
-        SummaryText.Text =
-            $"Từ {s.Since:dd/MM/yyyy}: {s.TotalBlockedEver:N0} yêu cầu đã bị chặn. " +
-            $"Lần chạy này: {s.Requests:N0} yêu cầu, {s.Blocked:N0} bị chặn, {s.Redirected:N0} được thay thế an toàn, " +
-            $"{s.Rewritten:N0} bỏ tham số theo dõi, {s.PagesCleaned:N0} trang đã ẩn quảng cáo, {s.PopupsBlocked:N0} popup bị chặn.";
+        SummaryText.Text = Loc.T("stats.summary", s.Since.ToString("d", Loc.Culture), s.TotalBlockedEver.ToString("N0", Loc.Culture), s.Requests.ToString("N0", Loc.Culture),
+            s.Blocked.ToString("N0", Loc.Culture), s.Redirected.ToString("N0", Loc.Culture), s.Rewritten.ToString("N0", Loc.Culture), s.PagesCleaned.ToString("N0", Loc.Culture), s.PopupsBlocked.ToString("N0", Loc.Culture));
 
         TopList.Items.Clear();
         foreach (var kv in s.TopHosts)
         {
-            TopList.Items.Add($"{kv.Value,8:N0}   {kv.Key}");
+            TopList.Items.Add($"{kv.Value.ToString("N0", Loc.Culture),8}   {kv.Key}");
         }
 
         RecentList.Items.Clear();

@@ -45,4 +45,35 @@ public static class CspNonce
 
         return string.Join(';', parts).Trim();
     }
+
+    /// <summary>
+    /// Lets the page's scripts talk to <paramref name="origin"/> (our local endpoint). Uses connect-src, or default-src
+    /// when there is no connect-src; a policy without either already allows it.
+    /// </summary>
+    public static string AllowConnect(string policy, string origin)
+    {
+        var parts = policy.Split(';');
+        var connect = -1;
+        var fallback = -1;
+        for (var i = 0; i < parts.Length; i++)
+        {
+            var name = parts[i].Trim().Split([' ', '\t'], 2)[0].ToLowerInvariant();
+            if (name == "connect-src") connect = i;
+            else if (name == "default-src") fallback = i;
+        }
+
+        var target = connect >= 0 ? connect : fallback;
+        if (target < 0) return policy;
+
+        var directive = parts[target].Trim();
+        var space = directive.IndexOfAny([' ', '\t']);
+        var dname = space < 0 ? directive : directive[..space];
+        var list = (space < 0 ? "" : directive[(space + 1)..]).Split([' ', '\t'], StringSplitOptions.RemoveEmptyEntries).ToList();
+        if (list.Contains("*") || list.Contains(origin, StringComparer.OrdinalIgnoreCase)) return policy;
+
+        list.RemoveAll(v => v.Equals("'none'", StringComparison.OrdinalIgnoreCase));
+        list.Add(origin);
+        parts[target] = " " + dname + " " + string.Join(' ', list);
+        return string.Join(';', parts).Trim();
+    }
 }

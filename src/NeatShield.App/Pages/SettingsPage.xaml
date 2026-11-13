@@ -2,47 +2,52 @@
     x:Class="NeatShield.App.Pages.SettingsPage"
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:loc="using:NeatShield.App"
     Loaded="Page_Loaded">
 
     <ScrollViewer>
         <StackPanel Padding="40,32" Spacing="16" MaxWidth="820" HorizontalAlignment="Center">
-            <TextBlock Text="Cài đặt" Style="{StaticResource TitleTextBlockStyle}" />
+            <TextBlock loc:L.Key="settings.title" Style="{StaticResource TitleTextBlockStyle}" />
 
-            <TextBlock Text="Chung" Style="{StaticResource SubtitleTextBlockStyle}" />
-            <ToggleSwitch x:Name="StartWithWindows" Header="Khởi động cùng Windows" />
-            <ToggleSwitch x:Name="StartMinimized" Header="Khởi động thu nhỏ vào khay hệ thống" />
+            <TextBlock loc:L.Key="settings.general" Style="{StaticResource SubtitleTextBlockStyle}" />
+            <ComboBox x:Name="LanguageBox" loc:L.Header="settings.language" Width="280">
+                <ComboBoxItem x:Name="LangAuto" loc:L.Key="settings.language.auto" Tag="" />
+                <ComboBoxItem Content="Tiếng Việt" Tag="vi" />
+                <ComboBoxItem Content="English" Tag="en" />
+            </ComboBox>
+            <ToggleSwitch x:Name="StartWithWindows" loc:L.Header="settings.startwithwindows" />
+            <ToggleSwitch x:Name="StartMinimized" loc:L.Header="settings.startminimized" />
 
-            <TextBlock Text="Bộ lọc" Style="{StaticResource SubtitleTextBlockStyle}" Margin="0,12,0,0" />
-            <ToggleSwitch x:Name="AutoUpdate" Header="Tự động cập nhật bộ lọc" />
-            <NumberBox x:Name="Interval" Header="Kiểm tra mỗi (giờ)" Minimum="1" Maximum="168"
+            <TextBlock loc:L.Key="settings.filters" Style="{StaticResource SubtitleTextBlockStyle}" Margin="0,12,0,0" />
+            <ToggleSwitch x:Name="AutoUpdate" loc:L.Header="settings.autoupdate" />
+            <NumberBox x:Name="Interval" loc:L.Header="settings.interval" Minimum="1" Maximum="168"
                        SpinButtonPlacementMode="Inline" Width="220" HorizontalAlignment="Left" />
-            <ToggleSwitch x:Name="BlockPopups" Header="Chặn cửa sổ popup quảng cáo" />
-            <ToggleSwitch x:Name="Cosmetic" Header="Ẩn các khối quảng cáo trong trang (lọc phần tử)" />
+            <ToggleSwitch x:Name="BlockPopups" loc:L.Header="settings.popups" />
+            <ToggleSwitch x:Name="Cosmetic" loc:L.Header="settings.cosmetic" />
 
-            <TextBlock Text="HTTPS" Style="{StaticResource SubtitleTextBlockStyle}" Margin="0,12,0,0" />
-            <ToggleSwitch x:Name="FilterHttps" Header="Lọc trang HTTPS (cần chứng chỉ NeatShield)" />
-            <TextBox x:Name="Excluded" Header="Trang không bị lọc (mỗi dòng một tên miền, ví dụ: ngan-hang.vn)"
+            <TextBlock loc:L.Key="settings.https" Style="{StaticResource SubtitleTextBlockStyle}" Margin="0,12,0,0" />
+            <ToggleSwitch x:Name="FilterHttps" loc:L.Header="settings.filterhttps" />
+            <TextBox x:Name="Excluded" loc:L.Header="settings.excluded"
                      AcceptsReturn="True" TextWrapping="Wrap" MinHeight="96" />
 
-            <TextBlock Text="Mạng" Style="{StaticResource SubtitleTextBlockStyle}" Margin="0,12,0,0" />
-            <NumberBox x:Name="Port" Header="Cổng proxy cục bộ" Minimum="1024" Maximum="65535"
+            <TextBlock loc:L.Key="settings.network" Style="{StaticResource SubtitleTextBlockStyle}" Margin="0,12,0,0" />
+            <NumberBox x:Name="Port" loc:L.Header="settings.port" Minimum="1024" Maximum="65535"
                        SpinButtonPlacementMode="Hidden" Width="220" HorizontalAlignment="Left" />
 
-            <Button x:Name="SaveButton" Content="Lưu cài đặt" Style="{StaticResource AccentButtonStyle}" Click="Save_Click" Margin="0,8,0,0" />
+            <Button x:Name="SaveButton" loc:L.Key="settings.save" Style="{StaticResource AccentButtonStyle}" Click="Save_Click" Margin="0,8,0,0" />
             <TextBlock x:Name="SavedText" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
 
-            <TextBlock Text="Chứng chỉ" Style="{StaticResource SubtitleTextBlockStyle}" Margin="0,20,0,0" />
+            <TextBlock loc:L.Key="settings.cert" Style="{StaticResource SubtitleTextBlockStyle}" Margin="0,20,0,0" />
             <TextBlock x:Name="CertText" TextWrapping="Wrap" />
             <StackPanel Orientation="Horizontal" Spacing="8">
-                <Button Content="Cài chứng chỉ" Click="InstallCert_Click" />
-                <Button Content="Gỡ chứng chỉ" Click="RemoveCert_Click" />
-                <Button Content="Mở thư mục chứng chỉ (cho Firefox)" Click="OpenCertFolder_Click" />
+                <Button loc:L.Key="settings.cert.install" Click="InstallCert_Click" />
+                <Button loc:L.Key="settings.cert.remove" Click="RemoveCert_Click" />
+                <Button loc:L.Key="settings.cert.folder" Click="OpenCertFolder_Click" />
             </StackPanel>
-            <TextBlock TextWrapping="Wrap" Foreground="{ThemeResource TextFillColorSecondaryBrush}"
-                       Text="Chrome và Edge dùng kho chứng chỉ của Windows. Firefox có kho riêng: vào Settings → Privacy &amp; Security → View Certificates → Authorities → Import, chọn tệp NeatShield-Root-CA.cer, hoặc bật security.enterprise_roots.enabled trong about:config." />
+            <TextBlock TextWrapping="Wrap" Foreground="{ThemeResource TextFillColorSecondaryBrush}" loc:L.Key="settings.cert.firefox" />
 
-            <TextBlock Text="Khắc phục sự cố" Style="{StaticResource SubtitleTextBlockStyle}" Margin="0,20,0,0" />
-            <Button Content="Trả lại cài đặt proxy của Windows" Click="ResetProxy_Click" />
+            <TextBlock loc:L.Key="settings.trouble" Style="{StaticResource SubtitleTextBlockStyle}" Margin="0,20,0,0" />
+            <Button loc:L.Key="settings.resetproxy" Click="ResetProxy_Click" />
             <TextBlock x:Name="ResetText" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
         </StackPanel>
     </ScrollViewer>

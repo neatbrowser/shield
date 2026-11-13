@@ -15,6 +15,8 @@ public static partial class HtmlInjector
     [GeneratedRegex(@"^\s*(<!--.*?-->\s*)*<!doctype[^>]*>", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant | RegexOptions.Singleline)]
     private static partial Regex Doctype();
 
+    private const int MaxSelectors = 20000;
+
     /// <summary>Hide rule for a list of selectors. Selectors with a brace or a closing tag are dropped (they cannot be one valid selector).</summary>
     public static string BuildHideCss(IEnumerable<string> selectors)
     {
@@ -25,14 +27,18 @@ public static partial class HtmlInjector
             if (string.IsNullOrWhiteSpace(s) || s.Contains('{') || s.Contains('}') || s.Contains("</", StringComparison.Ordinal)) continue;
             // One rule per selector: a selector the browser cannot parse must not break the others.
             sb.Append(s.Trim()).Append("{display:none!important}\n");
-            if (++count >= 5000) break;
+            if (++count >= MaxSelectors) break;
         }
 
         return sb.ToString();
     }
 
     /// <summary>The style and script tags for a page, or "" when there is nothing to add.</summary>
-    public static string BuildBlock(string css, string script, string nonce)
+    public static string BuildBlock(string css, string script, string nonce) =>
+        BuildBlock(css, script.Length > 0 ? new[] { script } : Array.Empty<string>(), nonce);
+
+    /// <summary>Each script gets its own tag, so one that fails does not stop the others.</summary>
+    public static string BuildBlock(string css, IReadOnlyList<string> scripts, string nonce)
     {
         var block = new StringBuilder();
         if (css.Length > 0)
@@ -42,8 +48,9 @@ public static partial class HtmlInjector
                 .Append("</style>");
         }
 
-        if (script.Length > 0)
+        foreach (var script in scripts)
         {
+            if (script.Length == 0) continue;
             block.Append("<script nonce=\"").Append(nonce).Append("\">")
                 .Append(script.Replace("</script", "<\\/script", StringComparison.OrdinalIgnoreCase))
                 .Append("</script>");
@@ -72,9 +79,12 @@ public static partial class HtmlInjector
     /// Same, on the raw bytes of the page, so the page's own text is never decoded and re-encoded.
     /// Pages in UTF-16/UTF-32 are not supported (returns null).
     /// </summary>
-    public static byte[]? Inject(byte[] html, string css, string script, string nonce)
+    public static byte[]? Inject(byte[] html, string css, string script, string nonce) =>
+        Inject(html, css, script.Length > 0 ? new[] { script } : Array.Empty<string>(), nonce);
+
+    public static byte[]? Inject(byte[] html, string css, IReadOnlyList<string> scripts, string nonce)
     {
-        var block = BuildBlock(css, script, nonce);
+        var block = BuildBlock(css, scripts, nonce);
         if (block.Length == 0) return html;
         if (html.Length >= 2 && ((html[0] == 0xFF && html[1] == 0xFE) || (html[0] == 0xFE && html[1] == 0xFF))) return null;
 

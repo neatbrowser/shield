@@ -1,6 +1,5 @@
 using System.Net;
 using System.Text;
-using System.Text.Json;
 using Neat.Adblock;
 using NeatShield.Core.Engine;
 using NeatShield.Core.Logging;
@@ -164,10 +163,16 @@ public sealed class ProxyService : IDisposable
 
     // ---- Requests ----
 
-    private Task OnBeforeRequest(object sender, SessionEventArgs e)
+    private async Task OnBeforeRequest(object sender, SessionEventArgs e)
     {
         try
         {
+            if (HostRules.HostOf(e.HttpClient.Request.Url) == CosmeticBuilder.InternalHost)
+            {
+                await HandleInternal(e);
+                return;
+            }
+
             Handle(e);
         }
         catch (Exception ex)
@@ -175,8 +180,56 @@ public sealed class ProxyService : IDisposable
             // A problem in filtering must never break browsing: let the request through.
             Log.Warn($"request filter error: {ex.Message}");
         }
+    }
 
-        return Task.CompletedTask;
+    // ---- the page script's questions (never leave this computer) ----
+
+    private const int MaxInternalBody = 256 * 1024;
+
+    private async Task HandleInternal(SessionEventArgs e)
+    {
+        var request = e.HttpClient.Request;
+        var headers = new List<HttpHeader>
+        {
+            new("Access-Control-Allow-Origin", "*"),
+            new("Cache-Control", "no-store"),
+        };
+        var path = Uri.TryCreate(request.Url, UriKind.Absolute, out var uri) ? uri.AbsolutePath : "";
+
+        if (string.Equals(request.Method, "OPTIONS", StringComparison.OrdinalIgnoreCase))
+        {
+            headers.Add(new HttpHeader("Access-Control-Allow-Methods", "POST, OPTIONS"));
+            headers.Add(new HttpHeader("Access-Control-Allow-Headers", "*"));
+            headers.Add(new HttpHeader("Access-Control-Max-Age", "600"));
+            e.GenericResponse(Array.Empty<byte>(), HttpStatusCode.NoContent, headers);
+            return;
+        }
+
+        if (path != CosmeticBuilder.HiddenPath || !string.Equals(request.Method, "POST", StringComparison.OrdinalIgnoreCase))
+        {
+            e.GenericResponse(Array.Empty<byte>(), HttpStatusCode.NotFound, headers);
+            return;
+        }
+
+        if (request.ContentLength > MaxInternalBody)
+        {
+            e.GenericResponse(Array.Empty<byte>(), HttpStatusCode.RequestEntityTooLarge, headers);
+            return;
+        }
+
+        var answer = "[]";
+        var engine = _engine.Current;
+        if (engine is not null && _settings.Current.ProtectionEnabled && _settings.Current.CosmeticFiltering)
+        {
+            var body = await e.GetRequestBodyAsString();
+            if (body.Length <= MaxInternalBody && CosmeticBuilder.ParseHiddenRequest(body) is { } parsed)
+            {
+                answer = engine.HiddenClassIdSelectorsJson(parsed.Classes, parsed.Ids, parsed.Exceptions);
+            }
+        }
+
+        headers.Add(new HttpHeader("Content-Type", "application/json"));
+        e.Ok(Encoding.UTF8.GetBytes(answer), headers);
     }
 
     private void Handle(SessionEventArgs e)
@@ -208,7 +261,7 @@ public sealed class ProxyService : IDisposable
             && engine.ShouldBlockPopup(url, opener))
         {
             _stats.OnPopupBlocked(host);
-            e.GenericResponse(PopupPage(url), HttpStatusCode.OK, new[]
+            e.GenericResponse(Encoding.UTF8.GetBytes(PageText.PopupPage(url, settings.EffectiveLanguage)), HttpStatusCode.OK, new[]
             {
                 new HttpHeader("Content-Type", "text/html; charset=utf-8"),
                 new HttpHeader("Cache-Control", "no-store"),
@@ -226,7 +279,7 @@ public sealed class ProxyService : IDisposable
         {
             case AdblockAction.Block:
                 _stats.OnBlocked(host, type);
-                RespondBlocked(e, type, url);
+                RespondBlocked(e, type, url, settings.EffectiveLanguage);
                 return;
 
             case AdblockAction.Redirect when DataUrl.TryParse(result.Redirect, out var data):
@@ -241,7 +294,7 @@ public sealed class ProxyService : IDisposable
             case AdblockAction.Redirect:
                 // A redirect we cannot read: block it, which is what the rule's author wanted at the least.
                 _stats.OnBlocked(host, type);
-                RespondBlocked(e, type, url);
+                RespondBlocked(e, type, url, settings.EffectiveLanguage);
                 return;
         }
 
@@ -263,13 +316,13 @@ public sealed class ProxyService : IDisposable
         }
     }
 
-    private static void RespondBlocked(SessionEventArgs e, string type, string url)
+    private static void RespondBlocked(SessionEventArgs e, string type, string url, string language)
     {
         var noStore = new HttpHeader("Cache-Control", "no-store");
         switch (type)
         {
             case "document":
-                e.GenericResponse(BlockPage(url), HttpStatusCode.Forbidden, new[]
+                e.GenericResponse(Encoding.UTF8.GetBytes(PageText.BlockedPage(url, language)), HttpStatusCode.Forbidden, new[]
                 {
                     new HttpHeader("Content-Type", "text/html; charset=utf-8"),
                     noStore,
@@ -312,35 +365,6 @@ public sealed class ProxyService : IDisposable
         }
     }
 
-    /// <summary>
-    /// Answer for a blocked pop-up: the new window closes itself. If it was not a new window (a link opened in the
-    /// same tab), the visitor sees why the page is empty and can go back.
-    /// </summary>
-    private static byte[] PopupPage(string url)
-    {
-        var shown = WebUtility.HtmlEncode(url.Length > 300 ? url[..300] + "…" : url);
-        var html = "<!doctype html><html><head><meta charset=\"utf-8\"><title>Pop-up blocked</title>"
-                   + "<style>body{font:16px/1.5 system-ui,Segoe UI,sans-serif;margin:32px;color:#1b2430}code{word-break:break-all;font-size:13px;color:#555}</style></head>"
-                   + "<body><h2>Pop-up blocked by NeatShield</h2><p><code>" + shown + "</code></p>"
-                   + "<p>This address is on the pop-up list. If you opened it on purpose, add its host to the exclusions in NeatShield settings.</p>"
-                   + "<p><a href=\"javascript:history.back()\">Go back</a></p>"
-                   + "<script>try{window.close()}catch(e){}</script></body></html>";
-        return Encoding.UTF8.GetBytes(html);
-    }
-
-    private static byte[] BlockPage(string url)
-    {
-        var shown = WebUtility.HtmlEncode(url.Length > 300 ? url[..300] + "…" : url);
-        var html = "<!doctype html><html><head><meta charset=\"utf-8\"><meta name=\"viewport\" content=\"width=device-width,initial-scale=1\">"
-                   + "<title>Blocked by NeatShield</title><style>body{font:16px/1.5 system-ui,Segoe UI,sans-serif;background:#f4f6f8;color:#1b2430;"
-                   + "display:grid;place-items:center;min-height:100vh;margin:0}main{max-width:560px;padding:32px;background:#fff;border-radius:12px;"
-                   + "box-shadow:0 2px 12px #0002}h1{margin:0 0 8px;font-size:22px;color:#c0392b}code{word-break:break-all;font-size:13px;color:#555}</style></head>"
-                   + "<body><main><h1>This page was blocked</h1><p>NeatShield stopped this address because it is on a filter list "
-                   + "(malware, phishing or tracking).</p><p><code>" + shown + "</code></p>"
-                   + "<p>If you trust this site, add its host to the exclusions in NeatShield settings.</p></main></body></html>";
-        return Encoding.UTF8.GetBytes(html);
-    }
-
     // ---- Responses ----
 
     private async Task OnBeforeResponse(object sender, SessionEventArgs e)
@@ -354,18 +378,18 @@ public sealed class ProxyService : IDisposable
             var response = e.HttpClient.Response;
             if (_settings.Current.CosmeticFiltering && IsInjectable(response))
             {
-                var (css, script) = BuildCosmetic(engine, page.Url);
-                if (css.Length > 0 || script.Length > 0)
+                var nonce = CspNonce.NewNonce();
+                var payload = CosmeticBuilder.Build(engine.CosmeticResourcesJson(page.Url), nonce, CosmeticBuilder.EndpointFor(page.Url));
+                if (!payload.IsEmpty)
                 {
                     var body = await e.GetResponseBody();
                     if (body.Length > 0 && body.Length <= MaxHtmlBytes)
                     {
-                        var nonce = CspNonce.NewNonce();
-                        var changed = HtmlInjector.Inject(body, css, script, nonce);
+                        var changed = HtmlInjector.Inject(body, payload.Css, payload.Scripts, nonce);
                         if (changed is not null)
                         {
                             e.SetResponseBody(changed);
-                            AddNonceToCsp(response, nonce);
+                            AddNonceToCsp(response, nonce, new Uri(CosmeticBuilder.EndpointFor(page.Url)).GetLeftPart(UriPartial.Authority));
                             _stats.OnPageCleaned();
                         }
                     }
@@ -396,35 +420,14 @@ public sealed class ProxyService : IDisposable
         return encoding is null or "" or "identity" or "gzip" or "deflate" or "br";
     }
 
-    private static (string css, string script) BuildCosmetic(AdblockEngine engine, string url)
-    {
-        var json = engine.CosmeticResourcesJson(url);
-        if (string.IsNullOrEmpty(json)) return ("", "");
-
-        using var doc = JsonDocument.Parse(json);
-        var root = doc.RootElement;
-        var css = "";
-        if (root.TryGetProperty("hide_selectors", out var selectors) && selectors.ValueKind == JsonValueKind.Array)
-        {
-            css = HtmlInjector.BuildHideCss(selectors.EnumerateArray()
-                .Where(x => x.ValueKind == JsonValueKind.String)
-                .Select(x => x.GetString()!));
-        }
-
-        var script = root.TryGetProperty("injected_script", out var s) && s.ValueKind == JsonValueKind.String
-            ? s.GetString() ?? ""
-            : "";
-        return (css, script);
-    }
-
-    /// <summary>Adds our nonce to every enforced Content-Security-Policy so the tags we insert are allowed to run.</summary>
-    private static void AddNonceToCsp(Response response, string nonce)
+    /// <summary>Adds our nonce (and our local address for connections) to every enforced Content-Security-Policy so what we insert can run.</summary>
+    private static void AddNonceToCsp(Response response, string nonce, string connectOrigin)
     {
         const string name = "Content-Security-Policy";
         var headers = response.Headers.GetHeaders(name);
         if (headers is null || headers.Count == 0) return;
 
-        var changed = headers.Select(h => CspNonce.AddNonce(h.Value, nonce)).ToList();
+        var changed = headers.Select(h => CspNonce.AllowConnect(CspNonce.AddNonce(h.Value, nonce), connectOrigin)).ToList();
         response.Headers.RemoveHeader(name);
         foreach (var value in changed)
         {

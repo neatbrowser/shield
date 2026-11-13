@@ -34,6 +34,21 @@ public sealed class AppSettings
     /// <summary>Hosts that are never decrypted or filtered. "example.com" also covers its subdomains; "*.example.com" is the same.</summary>
     public List<string> ExcludedHosts { get; set; } = new();
 
+    /// <summary>The user's own filter rules (Adblock Plus / uBlock Origin syntax), one per line.</summary>
+    public string CustomFilters { get; set; } = "";
+
+    /// <summary>"vi", "en", or empty for the language of Windows.</summary>
+    public string Language { get; set; } = "";
+
+    /// <summary>The language in use: the chosen one, or Vietnamese when Windows is in Vietnamese, else English.</summary>
+    [System.Text.Json.Serialization.JsonIgnore]
+    public string EffectiveLanguage =>
+        Language is "vi" or "en"
+            ? Language
+            : string.Equals(System.Globalization.CultureInfo.CurrentUICulture.TwoLetterISOLanguageName, "vi", StringComparison.OrdinalIgnoreCase) ? "vi" : "en";
+
+    public const int MaxCustomFiltersLength = 256 * 1024;
+
     /// <summary>Password of the root CA's key file, protected with DPAPI.</summary>
     public string? CaSecret { get; set; }
 
@@ -53,6 +68,10 @@ public sealed class AppSettings
         {
             FiltersBaseUrl += "/";
         }
+
+        CustomFilters = (CustomFilters ?? "").Replace("\r\n", "\n").Replace('\r', '\n');
+        if (CustomFilters.Length > MaxCustomFiltersLength) CustomFilters = CustomFilters[..MaxCustomFiltersLength];
+        if (Language is not ("vi" or "en")) Language = "";
 
         ExcludedHosts = (ExcludedHosts ?? new List<string>())
             .Select(h => h.Trim().ToLowerInvariant())
