@@ -87,5 +87,19 @@ Eq(true, SystemProxy.LooksLikeOurs("127.0.0.1:8877"), "proxy ours simple");
 Eq(true, SystemProxy.LooksLikeOurs("http=127.0.0.1:8877;https=127.0.0.1:8877"), "proxy ours per-protocol");
 Eq(false, SystemProxy.LooksLikeOurs("proxy.corp:8080"), "proxy not ours");
 Eq(false, SystemProxy.LooksLikeOurs("192.168.1.1:127"), "proxy not ours 2");
+
+// ---- popup detection ----
+string pop(Dictionary<string,string> h, string url="https://ads.example/x", string m="GET") => PopupDetector.TryGetOpener(url, m, H(h), out var o) ? o : "NO";
+Eq("https://news.example/a", pop(new(){["Sec-Fetch-Dest"]="document",["Sec-Fetch-Mode"]="navigate",["Sec-Fetch-Site"]="cross-site",["Referer"]="https://news.example/a"}), "popup cross-site with referer");
+Eq("https://ads.example/x", pop(new(){["Sec-Fetch-Dest"]="document",["Sec-Fetch-Site"]="cross-site"}), "popup cross-site no referer -> self");
+Eq("NO", pop(new(){["Sec-Fetch-Dest"]="document",["Sec-Fetch-Site"]="same-site",["Referer"]="https://a.ads.example/"}), "same-site is not popup");
+Eq("NO", pop(new(){["Sec-Fetch-Dest"]="document",["Sec-Fetch-Site"]="none"}), "typed address is not popup");
+Eq("NO", pop(new(){["Sec-Fetch-Dest"]="iframe",["Sec-Fetch-Site"]="cross-site"}), "iframe is not popup");
+Eq("NO", pop(new(){["Sec-Fetch-Dest"]="script",["Sec-Fetch-Site"]="cross-site"}), "script is not popup");
+Eq("NO", pop(new(){["Sec-Fetch-Dest"]="document",["Sec-Fetch-Site"]="cross-site"}, m:"POST"), "POST is not popup");
+Eq("https://news.example/", pop(new(){["Accept"]="text/html",["Referer"]="https://news.example/"}), "old browser: referer differs");
+Eq("NO", pop(new(){["Accept"]="text/html",["Referer"]="https://www.ads.example/p"}), "old browser: same site");
+Eq("NO", pop(new(){["Accept"]="text/html"}), "old browser: no referer");
+Eq(true, HostRules.IsExcluded("sub.good.com", new[]{"good.com"}) && !HostRules.IsExcluded("good.org", new[]{"good.com"}), "IsExcluded");
 Console.WriteLine(fail==0?"ALL OK":$"{fail} FAILED");
 return fail;

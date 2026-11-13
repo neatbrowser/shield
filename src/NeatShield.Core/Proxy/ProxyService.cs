@@ -200,6 +200,22 @@ public sealed class ProxyService : IDisposable
         var host = HostRules.HostOf(url);
         var isPage = type is "document" or "subdocument";
 
+        var settings = _settings.Current;
+        if (type == "document" && settings.BlockPopups
+            && PopupDetector.TryGetOpener(url, request.Method, Header, out var opener)
+            && !HostRules.IsExcluded(host, settings.ExcludedHosts)
+            && !HostRules.IsExcluded(HostRules.HostOf(opener), settings.ExcludedHosts)
+            && engine.ShouldBlockPopup(url, opener))
+        {
+            _stats.OnPopupBlocked(host);
+            e.GenericResponse(PopupPage(url), HttpStatusCode.OK, new[]
+            {
+                new HttpHeader("Content-Type", "text/html; charset=utf-8"),
+                new HttpHeader("Cache-Control", "no-store"),
+            });
+            return;
+        }
+
         var result = engine.Check(url, source, type, request.Method);
         if (result.Action == AdblockAction.Allow && type == "document" && request.Method == "GET" && engine.ShouldBlockDocument(url))
         {
@@ -294,6 +310,22 @@ public sealed class ProxyService : IDisposable
                 e.GenericResponse(Array.Empty<byte>(), HttpStatusCode.NoContent, new[] { noStore });
                 break;
         }
+    }
+
+    /// <summary>
+    /// Answer for a blocked pop-up: the new window closes itself. If it was not a new window (a link opened in the
+    /// same tab), the visitor sees why the page is empty and can go back.
+    /// </summary>
+    private static byte[] PopupPage(string url)
+    {
+        var shown = WebUtility.HtmlEncode(url.Length > 300 ? url[..300] + "…" : url);
+        var html = "<!doctype html><html><head><meta charset=\"utf-8\"><title>Pop-up blocked</title>"
+                   + "<style>body{font:16px/1.5 system-ui,Segoe UI,sans-serif;margin:32px;color:#1b2430}code{word-break:break-all;font-size:13px;color:#555}</style></head>"
+                   + "<body><h2>Pop-up blocked by NeatShield</h2><p><code>" + shown + "</code></p>"
+                   + "<p>This address is on the pop-up list. If you opened it on purpose, add its host to the exclusions in NeatShield settings.</p>"
+                   + "<p><a href=\"javascript:history.back()\">Go back</a></p>"
+                   + "<script>try{window.close()}catch(e){}</script></body></html>";
+        return Encoding.UTF8.GetBytes(html);
     }
 
     private static byte[] BlockPage(string url)

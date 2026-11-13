@@ -27,6 +27,13 @@ public static class HostRules
         return true;
     }
 
+    /// <summary>True when the host (or a parent domain) is in the user's exclusion list.</summary>
+    public static bool IsExcluded(string host, IReadOnlyCollection<string> userExcluded)
+    {
+        host = Normalize(host);
+        return host.Length > 0 && userExcluded.Any(p => Matches(host, p));
+    }
+
     /// <summary>"example.com" matches example.com and every subdomain; "*.example.com" does too.</summary>
     public static bool Matches(string host, string pattern)
     {

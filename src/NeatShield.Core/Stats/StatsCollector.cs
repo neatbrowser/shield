@@ -15,7 +15,8 @@ public sealed record StatsSnapshot(
     long TotalBlockedEver,
     DateTime Since,
     IReadOnlyList<KeyValuePair<string, long>> TopHosts,
-    IReadOnlyList<BlockedEntry> Recent);
+    IReadOnlyList<BlockedEntry> Recent,
+    long PopupsBlocked);
 
 /// <summary>Thread-safe counters for this run, plus a lifetime total that is saved to disk.</summary>
 public sealed class StatsCollector
@@ -31,6 +32,7 @@ public sealed class StatsCollector
     private long _redirected;
     private long _rewritten;
     private long _pagesCleaned;
+    private long _popups;
     private long _lifetimeBlocked;
     private DateTime _since = DateTime.Now;
 
@@ -71,6 +73,14 @@ public sealed class StatsCollector
         Note(host, type, "redirect");
     }
 
+    public void OnPopupBlocked(string host)
+    {
+        Interlocked.Increment(ref _popups);
+        Interlocked.Increment(ref _blocked);
+        Interlocked.Increment(ref _lifetimeBlocked);
+        Note(host, "popup", "block");
+    }
+
     public void OnRewritten() => Interlocked.Increment(ref _rewritten);
 
     public void OnPageCleaned() => Interlocked.Increment(ref _pagesCleaned);
@@ -97,7 +107,8 @@ public sealed class StatsCollector
         Interlocked.Read(ref _lifetimeBlocked),
         _since,
         _hosts.OrderByDescending(kv => kv.Value).Take(10).ToList(),
-        _recent.Reverse().ToList());
+        _recent.Reverse().ToList(),
+        Interlocked.Read(ref _popups));
 
     /// <summary>Writes the lifetime total. Called from time to time and when the app closes.</summary>
     public void Flush()

@@ -15,6 +15,9 @@ public sealed class AppSettings
     /// <summary>Hide page elements and inject scriptlets into HTML pages.</summary>
     public bool CosmeticFiltering { get; set; } = true;
 
+    /// <summary>Block pop-up windows that the filters' $popup rules name.</summary>
+    public bool BlockPopups { get; set; } = true;
+
     public bool AutoUpdate { get; set; } = true;
 
     public int UpdateIntervalHours { get; set; } = 6;

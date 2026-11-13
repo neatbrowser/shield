@@ -24,7 +24,7 @@ Trình duyệt / ứng dụng ──► proxy HTTP(S) cục bộ 127.0.0.1:8877 
 
 ## Giao diện
 
-Trang chủ (công tắc lớn “Bảo vệ đang bật”, số liệu), Bộ lọc (phiên bản, cập nhật ngay), Thống kê (tên miền bị chặn nhiều nhất, nhật ký gần đây), Cài đặt (cổng, HTTPS, loại trừ, tự khởi động, chứng chỉ, “trả lại proxy Windows”) và biểu tượng khay hệ thống (mở, bật/tắt, cập nhật, thoát). Đóng cửa sổ chỉ thu nhỏ vào khay.
+Trang chủ (công tắc lớn “Bảo vệ đang bật”, số liệu), Bộ lọc (phiên bản, cập nhật ngay), Thống kê (tên miền bị chặn nhiều nhất, nhật ký gần đây), Cài đặt (cổng, chặn popup, HTTPS, loại trừ, tự khởi động, chứng chỉ, “trả lại proxy Windows”) và biểu tượng khay hệ thống (mở, bật/tắt, cập nhật, thoát). Đóng cửa sổ chỉ thu nhỏ vào khay.
 
 ## Cấu trúc
 
@@ -53,7 +53,8 @@ Nếu mất mạng sau khi app sập: chạy `neatshield reset-proxy` (hoặc n�
 
 - **Firefox** dùng kho chứng chỉ riêng: nhập `NeatShield-Root-CA.cer` thủ công (hướng dẫn trong Cài đặt) hoặc bật `security.enterprise_roots.enabled`.
 - Ứng dụng ghim chứng chỉ (certificate pinning) sẽ lỗi khi bị giải mã: thêm tên miền vào danh sách loại trừ. Một số tên miền Microsoft/Dropbox/Webex đã được loại sẵn.
-- Chưa có: chặn popup, luật ẩn dạng thủ tục (`:has-text`…) và ẩn phần tử chung theo class/id (cần script phía trang), CSP đặt qua thẻ `<meta>`, chạy như dịch vụ Windows, bộ lọc tự chọn của người dùng, tiếng Anh/đa ngôn ngữ (giao diện đang là tiếng Việt).
+- **Chặn popup** là phỏng đoán ở phía proxy: proxy không thấy “cửa sổ mới”, nên coi mọi điều hướng trang từ site khác (Sec-Fetch-Site: cross-site, hoặc Referer khác site) là ứng viên và hỏi danh sách popup của bộ lọc (`popups.txt`). Cửa sổ bị chặn tự đóng; nếu thực ra là bấm link trong cùng tab tới một tên miền có trong danh sách popup, bạn thấy trang “Pop-up blocked” và có thể quay lại hoặc thêm tên miền vào loại trừ. Không chặn được popup do script mở bằng `about:blank` rồi gán địa chỉ sau, hay popup mở từ trang không đi qua proxy.
+- Chưa có: luật ẩn dạng thủ tục (`:has-text`…) và ẩn phần tử chung theo class/id (cần script phía trang), CSP đặt qua thẻ `<meta>`, chạy như dịch vụ Windows, bộ lọc tự chọn của người dùng, tiếng Anh/đa ngôn ngữ (giao diện đang là tiếng Việt).
 - Chứng chỉ gốc có hiệu lực ~13 tháng; khi hết hạn app tạo cái mới và cần cài lại.
 - Trình cập nhật không đi qua proxy hệ thống (để khỏi vòng lặp), nên mạng bắt buộc dùng proxy công ty sẽ không cập nhật được.
 

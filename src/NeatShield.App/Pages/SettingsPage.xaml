@@ -16,6 +16,7 @@
             <ToggleSwitch x:Name="AutoUpdate" Header="Tự động cập nhật bộ lọc" />
             <NumberBox x:Name="Interval" Header="Kiểm tra mỗi (giờ)" Minimum="1" Maximum="168"
                        SpinButtonPlacementMode="Inline" Width="220" HorizontalAlignment="Left" />
+            <ToggleSwitch x:Name="BlockPopups" Header="Chặn cửa sổ popup quảng cáo" />
             <ToggleSwitch x:Name="Cosmetic" Header="Ẩn các khối quảng cáo trong trang (lọc phần tử)" />
 
             <TextBlock Text="HTTPS" Style="{StaticResource SubtitleTextBlockStyle}" Margin="0,12,0,0" />

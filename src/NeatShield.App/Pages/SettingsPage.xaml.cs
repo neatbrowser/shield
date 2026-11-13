@@ -19,6 +19,7 @@ public sealed partial class SettingsPage : Page
         AutoUpdate.IsOn = s.AutoUpdate;
         Interval.Value = s.UpdateIntervalHours;
         Cosmetic.IsOn = s.CosmeticFiltering;
+        BlockPopups.IsOn = s.BlockPopups;
         FilterHttps.IsOn = s.FilterHttps;
         Excluded.Text = string.Join(Environment.NewLine, s.ExcludedHosts);
         Port.Value = s.Port;
@@ -41,6 +42,7 @@ public sealed partial class SettingsPage : Page
             s.AutoUpdate = AutoUpdate.IsOn;
             s.UpdateIntervalHours = interval;
             s.CosmeticFiltering = Cosmetic.IsOn;
+            s.BlockPopups = BlockPopups.IsOn;
             s.FilterHttps = FilterHttps.IsOn;
             s.ExcludedHosts = hosts;
             s.Port = port;

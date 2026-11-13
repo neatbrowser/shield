@@ -25,7 +25,7 @@ public sealed partial class StatsPage : Page
         SummaryText.Text =
             $"Từ {s.Since:dd/MM/yyyy}: {s.TotalBlockedEver:N0} yêu cầu đã bị chặn. " +
             $"Lần chạy này: {s.Requests:N0} yêu cầu, {s.Blocked:N0} bị chặn, {s.Redirected:N0} được thay thế an toàn, " +
-            $"{s.Rewritten:N0} bỏ tham số theo dõi, {s.PagesCleaned:N0} trang đã ẩn quảng cáo.";
+            $"{s.Rewritten:N0} bỏ tham số theo dõi, {s.PagesCleaned:N0} trang đã ẩn quảng cáo, {s.PopupsBlocked:N0} popup bị chặn.";
 
         TopList.Items.Clear();
         foreach (var kv in s.TopHosts)
