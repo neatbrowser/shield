@@ -44,7 +44,10 @@ else {
     $base = "https://github.com/$Repo/releases/latest/download"
     $tmp = Join-Path ([IO.Path]::GetTempPath()) $name
     Invoke-WebRequest "$base/$name" -OutFile $tmp
-    $expected = ((Invoke-WebRequest "$base/$name.sha256").Content.ToString().Trim() -split '\s+')[0].ToLower()
+    # GitHub serves the .sha256 asset as application/octet-stream, so .Content is byte[] and must be decoded.
+    $raw = (Invoke-WebRequest "$base/$name.sha256").Content
+    if ($raw -is [byte[]]) { $raw = [Text.Encoding]::ASCII.GetString($raw) }
+    $expected = (([string]$raw).Trim() -split '\s+')[0].ToLower()
     $actual = (Get-FileHash $tmp -Algorithm SHA256).Hash.ToLower()
     if ($expected -ne $actual) {
         Remove-Item $tmp -Force
