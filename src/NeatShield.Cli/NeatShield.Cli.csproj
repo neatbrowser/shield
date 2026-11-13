@@ -1,0 +1,23 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net10.0</TargetFramework>
+    <RootNamespace>NeatShield.Cli</RootNamespace>
+    <AssemblyName>neatshield</AssemblyName>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <LangVersion>latest</LangVersion>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\NeatShield.Core\NeatShield.Core.csproj" />
+  </ItemGroup>
+
+  <!-- neat_adblock.dll (built from neat-adblock, see tools\fetch-native.ps1) is copied next to the program. -->
+  <ItemGroup>
+    <None Include="..\..\native\neat_adblock.dll" Condition="Exists('..\..\native\neat_adblock.dll')" CopyToOutputDirectory="PreserveNewest" Link="neat_adblock.dll" />
+    <None Include="..\..\native\libneat_adblock.so" Condition="Exists('..\..\native\libneat_adblock.so')" CopyToOutputDirectory="PreserveNewest" Link="libneat_adblock.so" />
+  </ItemGroup>
+
+</Project>

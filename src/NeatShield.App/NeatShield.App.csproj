@@ -1,0 +1,40 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- WinUI 3, unpackaged (plain .exe, no MSIX). Build on Windows only: dotnet build -c Release -r win-x64 -->
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net10.0-windows10.0.19041.0</TargetFramework>
+    <TargetPlatformMinVersion>10.0.17763.0</TargetPlatformMinVersion>
+    <RootNamespace>NeatShield.App</RootNamespace>
+    <AssemblyName>NeatShield</AssemblyName>
+    <ApplicationManifest>app.manifest</ApplicationManifest>
+    <ApplicationIcon>Assets\neatshield.ico</ApplicationIcon>
+    <Platforms>x64;ARM64</Platforms>
+    <RuntimeIdentifiers>win-x64;win-arm64</RuntimeIdentifiers>
+    <UseWinUI>true</UseWinUI>
+    <WindowsPackageType>None</WindowsPackageType>
+    <WindowsAppSDKSelfContained>true</WindowsAppSDKSelfContained>
+    <EnableMsixTooling>true</EnableMsixTooling>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <LangVersion>latest</LangVersion>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.WindowsAppSDK" Version="1.8.250916003" />
+    <PackageReference Include="Microsoft.Windows.SDK.BuildTools" Version="10.0.26100.4654" />
+    <PackageReference Include="H.NotifyIcon.WinUI" Version="2.0.128" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\NeatShield.Core\NeatShield.Core.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Content Include="Assets\*.ico;Assets\*.png" CopyToOutputDirectory="PreserveNewest" />
+    <!-- neat_adblock.dll (tools\fetch-native.ps1) and the first filter release (tools\fetch-filters.ps1). -->
+    <Content Include="..\..\native\neat_adblock.dll" Condition="Exists('..\..\native\neat_adblock.dll')" Link="neat_adblock.dll" CopyToOutputDirectory="PreserveNewest" />
+    <Content Include="..\..\filters\**\*" Condition="Exists('..\..\filters')" Link="filters\%(RecursiveDir)%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
+</Project>

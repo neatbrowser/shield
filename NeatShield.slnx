@@ -1,0 +1,10 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/NeatShield.App/NeatShield.App.csproj" />
+    <Project Path="src/NeatShield.Cli/NeatShield.Cli.csproj" />
+    <Project Path="src/NeatShield.Core/NeatShield.Core.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/NeatShield.Core.Tests/NeatShield.Core.Tests.csproj" />
+  </Folder>
+</Solution>

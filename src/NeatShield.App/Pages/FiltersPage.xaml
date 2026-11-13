@@ -1,0 +1,33 @@
+<Page
+    x:Class="NeatShield.App.Pages.FiltersPage"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    Loaded="Page_Loaded"
+    Unloaded="Page_Unloaded">
+
+    <ScrollViewer>
+        <StackPanel Padding="40,32" Spacing="20" MaxWidth="820" HorizontalAlignment="Center">
+            <TextBlock Text="Bộ lọc" Style="{StaticResource TitleTextBlockStyle}" />
+
+            <Border Padding="20" CornerRadius="8"
+                    Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
+                    BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}" BorderThickness="1">
+                <StackPanel Spacing="8">
+                    <TextBlock Text="neat-filters" Style="{StaticResource SubtitleTextBlockStyle}" />
+                    <TextBlock x:Name="VersionText" />
+                    <TextBlock x:Name="RulesText" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                    <TextBlock x:Name="LastCheckText" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                    <StackPanel Orientation="Horizontal" Spacing="12" Margin="0,8,0,0">
+                        <Button x:Name="UpdateButton" Content="Cập nhật ngay" Style="{StaticResource AccentButtonStyle}" Click="UpdateButton_Click" />
+                        <ProgressRing x:Name="Ring" IsActive="False" Width="24" Height="24" />
+                        <TextBlock x:Name="ProgressText" VerticalAlignment="Center" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                    </StackPanel>
+                    <InfoBar x:Name="ResultBar" IsOpen="False" IsClosable="True" />
+                </StackPanel>
+            </Border>
+
+            <TextBlock TextWrapping="Wrap" Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                       Text="Bộ lọc được tải từ bản phát hành mới nhất của neatbrowser/neat-filters trên GitHub. Chỉ các tệp đã thay đổi mới được tải lại, và mỗi tệp được kiểm tra kích thước và SHA-256 trước khi dùng." />
+        </StackPanel>
+    </ScrollViewer>
+</Page>
