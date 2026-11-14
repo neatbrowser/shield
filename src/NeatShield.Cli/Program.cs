@@ -4,10 +4,13 @@ using NeatShield.Core.Proxy;
 using NeatShield.Core.Runtime;
 
 // neatshield <command>
-//   run            start protection and keep running until Ctrl+C
+//   run [--no-system-proxy]   start protection and keep running until Ctrl+C
+//                  (--no-system-proxy: only listen on the port; point a program at it yourself)
 //   status         show filter version and certificate state
 //   update         download the newest filters
 //   check <url> [type] [source]   ask the filter engine about one request (no proxy needed)
+//   selftest [--no-system-proxy]   turn protection on, check that it really works, turn it off (exit code 1 when a check fails)
+//   diag           print a report to copy when something does not work
 //   trust-ca       install the root certificate for this user
 //   untrust-ca     remove it
 //   reset-proxy    put the Windows proxy setting back (use this if the internet stops working after a crash)
@@ -36,7 +39,7 @@ if (command == "reset-proxy")
 
 if (command is "help" or "-h" or "--help")
 {
-    Console.WriteLine("neatshield run | status | update | check <url> [type] [source] | trust-ca | untrust-ca | reset-proxy");
+    Console.WriteLine("neatshield run [--no-system-proxy] | status | update | check <url> [type] [source] | selftest | diag | trust-ca | untrust-ca | reset-proxy");
     return 0;
 }
 
@@ -82,6 +85,24 @@ switch (command)
         return 0;
     }
 
+    case "diag":
+    {
+        if (runtime.Filters.BestDir is { } dir0 && runtime.Engine.Current is null) await runtime.Engine.LoadAsync(dir0);
+        Console.WriteLine(Diagnostics.Report(runtime));
+        return 0;
+    }
+
+    case "selftest":
+    {
+        if (args.Skip(1).Any(a => a == "--no-system-proxy")) runtime.SystemProxy.Disabled = true;
+        await runtime.StartAsync();
+        await runtime.SetProtectionAsync(true);
+        var steps = await SelfTest.RunAsync(runtime);
+        foreach (var step in steps) Console.WriteLine($"{(step.Ok ? "ok  " : "FAIL")} {step.Id,-8} {step.Detail}");
+        runtime.Shutdown();
+        return steps.All(x => x.Ok) ? 0 : 1;
+    }
+
     case "trust-ca":
         runtime.Certificate.Trust();
         Console.WriteLine(runtime.Certificate.GetStatus().Trusted ? "Certificate is trusted." : "Certificate was not trusted.");
@@ -95,6 +116,7 @@ switch (command)
 
     case "run":
     {
+        if (args.Skip(1).Any(a => a == "--no-system-proxy")) runtime.SystemProxy.Disabled = true;
         await runtime.StartAsync();
         await runtime.SetProtectionAsync(true);
         if (runtime.State != ProtectionState.On)
@@ -108,7 +130,7 @@ switch (command)
         Console.CancelKeyPress += (_, e) => { e.Cancel = true; done.TrySetResult(); };
         await done.Task;
         runtime.Shutdown();
-        Console.WriteLine("Stopped. Windows proxy setting restored.");
+        Console.WriteLine(runtime.SystemProxy.Disabled ? "Stopped." : "Stopped. Windows proxy setting restored.");
         return 0;
     }
 

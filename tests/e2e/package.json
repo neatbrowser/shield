@@ -1,0 +1,7 @@
+{
+  "name": "neatshield-e2e",
+  "private": true,
+  "description": "End-to-end test: the real proxy with a real Chromium (see run.sh).",
+  "scripts": { "test": "bash run.sh" },
+  "devDependencies": { "playwright": "1.63.0" }
+}

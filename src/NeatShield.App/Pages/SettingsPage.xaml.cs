@@ -120,4 +120,31 @@ public sealed partial class SettingsPage : Page
         Rt.SystemProxy.Restore();
         ResetText.Text = Loc.T("settings.resetdone");
     }
+
+    private void CopyDiag_Click(object sender, RoutedEventArgs e)
+    {
+        try
+        {
+            var package = new Windows.ApplicationModel.DataTransfer.DataPackage();
+            package.SetText(Diagnostics.Report(Rt));
+            Windows.ApplicationModel.DataTransfer.Clipboard.SetContent(package);
+            DiagText.Text = Loc.T("settings.diag.copied");
+        }
+        catch (Exception ex)
+        {
+            DiagText.Text = Loc.T("settings.diag.fail", ex.Message);
+        }
+    }
+
+    private void OpenLogFolder_Click(object sender, RoutedEventArgs e)
+    {
+        try
+        {
+            Process.Start(new ProcessStartInfo("explorer.exe", $"\"{Rt.Paths.LogDir}\"") { UseShellExecute = true });
+        }
+        catch (Exception ex)
+        {
+            DiagText.Text = Loc.T("settings.diag.fail", ex.Message);
+        }
+    }
 }

@@ -70,6 +70,16 @@
                     </StackPanel>
                 </Border>
             </Grid>
+
+            <StackPanel Spacing="8">
+                <StackPanel Orientation="Horizontal" Spacing="12">
+                    <Button x:Name="TestButton" loc:L.Key="home.test" Click="TestButton_Click" />
+                    <ProgressRing x:Name="TestBusy" IsActive="False" Width="20" Height="20" />
+                </StackPanel>
+                <TextBlock TextWrapping="Wrap" Foreground="{ThemeResource TextFillColorSecondaryBrush}" loc:L.Key="home.test.hint" />
+                <TextBlock x:Name="TestSummary" FontWeight="SemiBold" TextWrapping="Wrap" />
+                <TextBlock x:Name="TestLines" TextWrapping="Wrap" IsTextSelectionEnabled="True" />
+            </StackPanel>
         </StackPanel>
     </ScrollViewer>
 </Page>

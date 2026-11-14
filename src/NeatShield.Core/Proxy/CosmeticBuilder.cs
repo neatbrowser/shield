@@ -20,6 +20,9 @@ public static class CosmeticBuilder
 
     public const string HiddenPath = "/__ns/hidden";
 
+    /// <summary>Answered with "ok" by the proxy itself; the self-test uses it to prove that HTTPS opening works.</summary>
+    public const string PingPath = "/__ns/ping";
+
     private static readonly Lazy<string> RuntimeSource = new(LoadRuntime);
 
     public static string EndpointFor(string pageUrl) =>

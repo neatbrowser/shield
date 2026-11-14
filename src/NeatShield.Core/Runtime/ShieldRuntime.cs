@@ -32,7 +32,10 @@ public sealed class ShieldRuntime : IDisposable
         Filters = new FilterStore(Paths);
         Engine = new EngineHost(Paths, Filters, () => Settings.Current.CustomFilters);
         Stats = new StatsCollector(Paths.StatsFile);
-        SystemProxy = new SystemProxy(Paths.ProxyBackupFile);
+        SystemProxy = new SystemProxy(Paths.ProxyBackupFile)
+        {
+            Disabled = Environment.GetEnvironmentVariable("NEATSHIELD_NO_SYSTEM_PROXY") == "1",
+        };
         Proxy = new ProxyService(Settings, Engine, Stats);
         Certificate = new CertificateService(Paths, Settings, Proxy.CertificateManager);
 

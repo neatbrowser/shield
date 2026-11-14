@@ -26,6 +26,25 @@
                 <Button loc:L.Key="custom.save" Style="{StaticResource AccentButtonStyle}" Click="Save_Click" />
                 <TextBlock x:Name="StatusText" VerticalAlignment="Center" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
             </StackPanel>
+
+            <TextBlock loc:L.Key="custom.try" Style="{StaticResource SubtitleTextBlockStyle}" Margin="0,24,0,0" />
+            <TextBlock loc:L.Key="custom.try.hint" TextWrapping="Wrap" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+            <TextBox x:Name="TryUrl" loc:L.Header="custom.try.url" PlaceholderText="https://ads.example.com/banner.js" IsSpellCheckEnabled="False" />
+            <TextBox x:Name="TryPage" loc:L.Header="custom.try.page" PlaceholderText="https://news.example.org/" IsSpellCheckEnabled="False" />
+            <ComboBox x:Name="TryType" loc:L.Header="custom.try.type" SelectedIndex="0" MinWidth="200">
+                <ComboBoxItem Content="script" />
+                <ComboBoxItem Content="image" />
+                <ComboBoxItem Content="stylesheet" />
+                <ComboBoxItem Content="xmlhttprequest" />
+                <ComboBoxItem Content="subdocument" />
+                <ComboBoxItem Content="document" />
+                <ComboBoxItem Content="websocket" />
+                <ComboBoxItem Content="other" />
+            </ComboBox>
+            <StackPanel Orientation="Horizontal" Spacing="12">
+                <Button loc:L.Key="custom.try.button" Click="Try_Click" />
+                <TextBlock x:Name="TryResult" VerticalAlignment="Center" TextWrapping="Wrap" IsTextSelectionEnabled="True" />
+            </StackPanel>
         </StackPanel>
     </ScrollViewer>
 </Page>

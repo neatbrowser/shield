@@ -20,6 +20,34 @@ public static class Log
         }
     }
 
+    /// <summary>The newest <paramref name="count"/> lines of the log (empty when there is none).</summary>
+    public static IReadOnlyList<string> Tail(int count)
+    {
+        var path = _path;
+        if (path is null || count <= 0) return Array.Empty<string>();
+        try
+        {
+            lock (Gate)
+            {
+                if (!File.Exists(path)) return Array.Empty<string>();
+                using var stream = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
+                using var reader = new StreamReader(stream);
+                var queue = new Queue<string>(count);
+                while (reader.ReadLine() is { } line)
+                {
+                    if (queue.Count == count) queue.Dequeue();
+                    queue.Enqueue(line);
+                }
+
+                return queue.ToList();
+            }
+        }
+        catch
+        {
+            return Array.Empty<string>();
+        }
+    }
+
     public static void Info(string message) => Write("INFO", message);
 
     public static void Warn(string message) => Write("WARN", message);

@@ -49,6 +49,11 @@
             <TextBlock loc:L.Key="settings.trouble" Style="{StaticResource SubtitleTextBlockStyle}" Margin="0,20,0,0" />
             <Button loc:L.Key="settings.resetproxy" Click="ResetProxy_Click" />
             <TextBlock x:Name="ResetText" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+            <StackPanel Orientation="Horizontal" Spacing="8">
+                <Button loc:L.Key="settings.diag.copy" Click="CopyDiag_Click" />
+                <Button loc:L.Key="settings.diag.folder" Click="OpenLogFolder_Click" />
+            </StackPanel>
+            <TextBlock x:Name="DiagText" TextWrapping="Wrap" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
         </StackPanel>
     </ScrollViewer>
 </Page>

@@ -17,6 +17,12 @@ public sealed class SystemProxy
 
     public SystemProxy(string backupFile) => _backupFile = backupFile;
 
+    /// <summary>
+    /// When true the Windows setting is never read or written: the proxy only listens on its port and you point a
+    /// program at it yourself (for example <c>chrome --proxy-server=127.0.0.1:8877</c>). Used by "run --no-system-proxy".
+    /// </summary>
+    public bool Disabled { get; set; }
+
     private sealed record Backup(int ProxyEnable, string? ProxyServer, string? ProxyOverride, string? AutoConfigUrl);
 
     public static string AddressFor(int port) => $"127.0.0.1:{port}";
@@ -24,7 +30,7 @@ public sealed class SystemProxy
     /// <summary>True when the system proxy is currently set to a local NeatShield port (any port).</summary>
     public bool IsOurs()
     {
-        if (!OperatingSystem.IsWindows()) return false;
+        if (Disabled || !OperatingSystem.IsWindows()) return false;
         return ReadCurrent().server is { } s && LooksLikeOurs(s);
     }
 
@@ -37,6 +43,12 @@ public sealed class SystemProxy
 
     public void Enable(int port, IEnumerable<string> bypass)
     {
+        if (Disabled)
+        {
+            Log.Info($"system proxy left alone (proxy listens on {AddressFor(port)})");
+            return;
+        }
+
         if (!OperatingSystem.IsWindows()) throw new PlatformNotSupportedException("The system proxy can only be set on Windows.");
         EnableWindows(port, bypass);
     }
@@ -44,7 +56,7 @@ public sealed class SystemProxy
     /// <summary>Puts the user's saved settings back. Does nothing if the proxy is no longer ours.</summary>
     public void Restore()
     {
-        if (!OperatingSystem.IsWindows()) return;
+        if (Disabled || !OperatingSystem.IsWindows()) return;
         RestoreWindows();
     }
 

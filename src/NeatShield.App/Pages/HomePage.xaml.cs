@@ -98,6 +98,36 @@ public sealed partial class HomePage : Page
         await Rt.SetProtectionAsync(Toggle.IsOn);
     }
 
+    private async void TestButton_Click(object sender, RoutedEventArgs e)
+    {
+        TestSummary.Text = "";
+        TestLines.Text = "";
+        if (Rt.State != ProtectionState.On)
+        {
+            TestSummary.Text = Loc.T("home.test.off");
+            return;
+        }
+
+        TestButton.IsEnabled = false;
+        TestBusy.IsActive = true;
+        try
+        {
+            var steps = await SelfTest.RunAsync(Rt);
+            TestLines.Text = string.Join("\n", steps.Select(s =>
+                $"{(s.Ok ? "\u2713" : "\u2717")}  {Loc.T("selftest." + s.Id)}: {s.Detail}"));
+            TestSummary.Text = steps.All(s => s.Ok) ? Loc.T("home.test.pass") : Loc.T("home.test.fail");
+        }
+        catch (Exception ex)
+        {
+            TestSummary.Text = Loc.T("settings.diag.fail", ex.Message);
+        }
+        finally
+        {
+            TestBusy.IsActive = false;
+            TestButton.IsEnabled = true;
+        }
+    }
+
     private async void BannerButton_Click(object sender, RoutedEventArgs e)
     {
         await Rt.SetProtectionAsync(true); // trusts the certificate (Windows asks), then starts

@@ -157,6 +157,26 @@ var st2 = new AppSettings { CustomFilters = "a\r\nb" + new string('x', 300000) }
 st2.Normalize();
 Eq(true, st2.CustomFilters.StartsWith("a\nb") && st2.CustomFilters.Length == AppSettings.MaxCustomFiltersLength, "custom filters normalized+capped");
 Eq("", new AppSettings { Language = "fr" }.Also(x => x.Normalize()).Language, "language normalized");
+// ---- policy in a <meta> tag ----
+Func<string, string> addN = pol => CspNonce.AllowConnect(CspNonce.AddNonce(pol, "N1"), "https://neatshield.invalid");
+var m1 = HtmlInjector.PatchMetaCsp("<head><meta http-equiv=\"Content-Security-Policy\" content=\"default-src 'self'; script-src 'self'\"><title>x</title>", addN);
+Eq(true, m1.Contains("script-src 'self' 'nonce-N1'") && m1.Contains("default-src 'self' 'nonce-N1' https://neatshield.invalid") && m1.EndsWith("<title>x</title>"), "meta csp patched (double quotes)");
+var m2 = HtmlInjector.PatchMetaCsp("<META CONTENT='default-src &#39;self&#39; &amp; x' HTTP-EQUIV=content-security-policy>", addN);
+Eq("<META CONTENT='default-src &#39;self&#39; &amp; x &#39;nonce-N1&#39; https://neatshield.invalid' HTTP-EQUIV=content-security-policy>", m2, "meta csp patched (single quotes, entities, odd order)");
+var plainMeta = "<meta charset=\"utf-8\"><meta name=\"viewport\" content=\"width=device-width\"><meta http-equiv=\"refresh\" content=\"5\">";
+Eq(true, ReferenceEquals(plainMeta, HtmlInjector.PatchMetaCsp(plainMeta, addN)), "other meta tags untouched");
+var far = new string(' ', 200000) + "<meta http-equiv=\"Content-Security-Policy\" content=\"default-src 'self'\">";
+Eq(true, ReferenceEquals(far, HtmlInjector.PatchMetaCsp(far, addN)), "meta far from the start ignored");
+Eq("<p>no meta</p>", HtmlInjector.PatchMetaCsp("<p>no meta</p>", addN), "no meta");
+var twoMeta = HtmlInjector.PatchMetaCsp("<meta http-equiv=\"content-security-policy\" content=\"script-src 'self'\"><meta http-equiv=\"Content-Security-Policy\" content=\"style-src 'self'\">", addN);
+Eq(true, twoMeta.Contains("script-src 'self' 'nonce-N1'") && twoMeta.Contains("style-src 'self' 'nonce-N1'"), "two meta policies");
+var withMeta = System.Text.Encoding.UTF8.GetBytes("<!doctype html><html><head><meta http-equiv=\"Content-Security-Policy\" content=\"default-src 'none'\"><title>Tiêu đề</title></head><body>xin chào</body></html>");
+var outMeta = HtmlInjector.Inject(withMeta, "a{display:none}", new[] { "1+1" }, "N1", addN)!;
+var outText = System.Text.Encoding.UTF8.GetString(outMeta);
+Eq(true, outText.Contains("'nonce-N1' https://neatshield.invalid\"") && outText.Contains("Tiêu đề") && outText.Contains("xin chào") && outText.Contains("<head><style nonce=\"N1\">"), "bytes: meta patched, page text and block intact");
+var noMetaOut = HtmlInjector.Inject(System.Text.Encoding.UTF8.GetBytes("<head><title>Tiêu đề</title></head>"), "a{}", new[] { "x" }, "N1", addN)!;
+Eq(true, System.Text.Encoding.UTF8.GetString(noMetaOut).Contains("Tiêu đề"), "bytes: utf-8 text survives without a meta policy");
+
 // ---- pages in two languages ----
 var bp = PageText.BlockedPage("https://evil.example/<script>alert(1)</script>", "en");
 Eq(true, bp.Contains("lang=\"en\"") && bp.Contains("This page was blocked") && !bp.Contains("<script>alert"), "blocked page en, url encoded");

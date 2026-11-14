@@ -1,5 +1,6 @@
 using System.Net;
 using System.Text;
+using System.Text.Json;
 using Neat.Adblock;
 using NeatShield.Core.Engine;
 using NeatShield.Core.Logging;
@@ -205,6 +206,14 @@ public sealed class ProxyService : IDisposable
             return;
         }
 
+        if (path == CosmeticBuilder.PingPath && string.Equals(request.Method, "GET", StringComparison.OrdinalIgnoreCase))
+        {
+            headers.Add(new HttpHeader("Content-Type", "application/json"));
+            var ping = JsonSerializer.Serialize(new { ok = true, filters = _engine.LoadedVersion, protection = _settings.Current.ProtectionEnabled });
+            e.Ok(Encoding.UTF8.GetBytes(ping), headers);
+            return;
+        }
+
         if (path != CosmeticBuilder.HiddenPath || !string.Equals(request.Method, "POST", StringComparison.OrdinalIgnoreCase))
         {
             e.GenericResponse(Array.Empty<byte>(), HttpStatusCode.NotFound, headers);
@@ -385,11 +394,14 @@ public sealed class ProxyService : IDisposable
                     var body = await e.GetResponseBody();
                     if (body.Length > 0 && body.Length <= MaxHtmlBytes)
                     {
-                        var changed = HtmlInjector.Inject(body, payload.Css, payload.Scripts, nonce);
+                        var connectOrigin = new Uri(CosmeticBuilder.EndpointFor(page.Url)).GetLeftPart(UriPartial.Authority);
+                        // A policy can also sit in the page itself (<meta http-equiv="Content-Security-Policy">).
+                        var changed = HtmlInjector.Inject(body, payload.Css, payload.Scripts, nonce,
+                            policy => CspNonce.AllowConnect(CspNonce.AddNonce(policy, nonce), connectOrigin));
                         if (changed is not null)
                         {
                             e.SetResponseBody(changed);
-                            AddNonceToCsp(response, nonce, new Uri(CosmeticBuilder.EndpointFor(page.Url)).GetLeftPart(UriPartial.Authority));
+                            AddNonceToCsp(response, nonce, connectOrigin);
                             _stats.OnPageCleaned();
                         }
                     }
