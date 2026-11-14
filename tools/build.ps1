@@ -22,7 +22,10 @@ if (-not $SkipFetch) {
 $rid = "win-$Arch"
 $platform = if ($Arch -eq "arm64") { "ARM64" } else { "x64" }
 $out = Join-Path $root "dist/$Arch"
-$versionArg = if ($Version) { @("-p:Version=$Version") } else { @() }
+# Typed array + plain assignment on purpose: "$x = if (...) { @('a') }" would turn the one-element array into a bare
+# string, and splatting a string passes every character as a separate argument (MSB1001 "Unknown switch").
+[string[]] $versionArg = @()
+if ($Version) { $versionArg = @("-p:Version=$Version") }
 dotnet run --project tests/NeatShield.Core.Tests -c $Configuration
 if ($LASTEXITCODE -ne 0) { throw 'Tests failed.' }
 
