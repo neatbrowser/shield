@@ -1,0 +1,27 @@
+name: e2e (manual)
+
+# Real proxy + real Chromium on Linux, see tests/e2e/README.md. Started by hand (Actions -> e2e (manual) -> Run workflow).
+on:
+  workflow_dispatch:
+
+jobs:
+  e2e:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.0.x
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Build libneat_adblock.so from source
+        run: |
+          git clone --depth 1 https://github.com/neatbrowser/neat-adblock "$RUNNER_TEMP/neat-adblock"
+          (cd "$RUNNER_TEMP/neat-adblock" && cargo build --release --locked)
+          echo "NEAT_ADBLOCK_SO=$RUNNER_TEMP/neat-adblock/target/release/libneat_adblock.so" >> "$GITHUB_ENV"
+      - name: Run the end-to-end test (root: it adds host names to /etc/hosts)
+        env:
+          E2E_PLAYWRIGHT_WITH_DEPS: "1"
+        run: sudo -E env "PATH=$PATH" "DOTNET_ROOT=${DOTNET_ROOT:-}" "HOME=$HOME" bash tests/e2e/run.sh
