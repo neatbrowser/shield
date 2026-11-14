@@ -1,0 +1,69 @@
+name: release
+
+# Pushing a tag such as v0.3.0 (or v0.3.0-rc.1 for a pre-release) builds both architectures
+# and publishes a GitHub Release with the zips and their SHA-256 files.
+on:
+  push:
+    tags: [ 'v*' ]
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: windows-latest
+    strategy:
+      fail-fast: true
+      matrix:
+        arch: [ x64, arm64 ]
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check the tag
+        shell: pwsh
+        run: |
+          if ($env:GITHUB_REF_NAME -notmatch '^v\d+\.\d+\.\d+(-[0-9A-Za-z.-]+)?$') {
+            throw "The tag '$($env:GITHUB_REF_NAME)' must look like v1.2.3 or v1.2.3-rc.1"
+          }
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.0.x
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Build
+        shell: pwsh
+        run: |
+          $version = $env:GITHUB_REF_NAME.Substring(1)
+          ./tools/build.ps1 -Arch ${{ matrix.arch }} -Version $version
+      - name: Zip
+        shell: pwsh
+        run: |
+          $name = "NeatShield-$($env:GITHUB_REF_NAME)-win-${{ matrix.arch }}"
+          New-Item -ItemType Directory -Force release | Out-Null
+          Compress-Archive -Path "dist/${{ matrix.arch }}/*" -DestinationPath "release/$name.zip"
+          $hash = (Get-FileHash "release/$name.zip" -Algorithm SHA256).Hash.ToLower()
+          "$hash  $name.zip" | Set-Content "release/$name.zip.sha256" -Encoding ascii
+      - uses: actions/upload-artifact@v4
+        with:
+          name: release-${{ matrix.arch }}
+          path: release/*
+
+  publish:
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: release-*
+          merge-multiple: true
+          path: release
+      - name: Create the release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ github.ref_name }}
+        run: |
+          flags=()
+          [[ "$TAG" == *-* ]] && flags+=(--prerelease)
+          gh release create "$TAG" release/* --repo "$GITHUB_REPOSITORY" --title "NeatShield $TAG" --generate-notes "${flags[@]}"
