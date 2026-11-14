@@ -5,6 +5,8 @@
 param(
     [ValidateSet('x64', 'arm64')] [string] $Arch = 'x64',
     [string] $Configuration = 'Release',
+    # Version stamped into the app, e.g. 0.3.0 or 0.3.0-rc.1 (the release workflow passes the tag without its "v").
+    [string] $Version = '',
     [switch] $SkipFetch
 )
 
@@ -20,6 +22,7 @@ if (-not $SkipFetch) {
 $rid = "win-$Arch"
 $platform = if ($Arch -eq "arm64") { "ARM64" } else { "x64" }
 $out = Join-Path $root "dist/$Arch"
+$versionArg = if ($Version) { @("-p:Version=$Version") } else { @() }
 dotnet run --project tests/NeatShield.Core.Tests -c $Configuration
 if ($LASTEXITCODE -ne 0) { throw 'Tests failed.' }
 
@@ -38,6 +41,8 @@ else {
     Write-Warning 'Node.js was not found: skipping the page-script tests (tests/js).'
 }
 
-dotnet publish src/NeatShield.App -c $Configuration -r $rid -p:Platform=$platform -o $out
-dotnet publish src/NeatShield.Cli -c $Configuration -r $rid --self-contained false -o "$out/cli"
+dotnet publish src/NeatShield.App -c $Configuration -r $rid -p:Platform=$platform @versionArg -o $out
+if ($LASTEXITCODE -ne 0) { throw 'Publishing the app failed.' }
+dotnet publish src/NeatShield.Cli -c $Configuration -r $rid --self-contained false @versionArg -o "$out/cli"
+if ($LASTEXITCODE -ne 0) { throw 'Publishing the command-line tool failed.' }
 Write-Host "Built: $out\NeatShield.exe"

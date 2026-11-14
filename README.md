@@ -70,6 +70,26 @@ Nếu mất mạng sau khi app sập: chạy `neatshield reset-proxy` (hoặc n�
 
 Dòng lệnh: `neatshield run [--no-system-proxy]` (chỉ mở proxy trên `127.0.0.1:<cổng>`, không đụng cài đặt proxy Windows: dùng cho một trình duyệt riêng, ví dụ `chrome --proxy-server=127.0.0.1:8877`), `selftest`, `diag`, `status`, `update`, `check <url> [loại] [trang]`, `trust-ca`, `reset-proxy`.
 
+## Phát hành bằng tag
+
+Workflow `.github/workflows/release.yml` chạy khi bạn đẩy một **tag bắt đầu bằng `v`**: nó build x64 và arm64 (có chạy test), nén thành `NeatShield-<tag>-win-<arch>.zip` kèm tệp `.sha256`, rồi tạo GitHub Release với ghi chú tự sinh.
+
+```bash
+git add -A
+git commit -m "NeatShield 0.3.0"
+git push                                   # đẩy mã lên nhánh chính trước
+
+git tag -a v0.3.0 -m "NeatShield 0.3.0"    # tạo tag
+git push origin v0.3.0                     # đẩy tag => workflow "release" chạy, tạo Release sau vài phút
+```
+
+- Tên tag phải có dạng `vX.Y.Z` (bản chính thức) hoặc `vX.Y.Z-rc.1`, `vX.Y.Z-beta.1` (có dấu `-` thì được đánh dấu **pre-release**). Số phiên bản sau chữ `v` được ghi vào ứng dụng (hiện trong báo cáo chẩn đoán).
+- Nên thử lần đầu bằng một tag pre-release (`v0.3.0-rc.1`); nếu ổn thì tạo `v0.3.0`.
+- Tag sai hoặc build lỗi: xóa Release (trang Releases) rồi xóa tag, sửa, tạo lại:
+  `git tag -d v0.3.0 && git push origin :refs/tags/v0.3.0`
+- Mỗi lần phát hành tăng số: sửa lỗi nhỏ `v0.3.1`, thêm tính năng `v0.4.0`, thay đổi lớn `v1.0.0`.
+- Workflow `build` vẫn chạy ở mỗi lần push và chỉ tạo artifact (không tạo Release).
+
 ## Giới hạn đã biết
 
 - **Firefox** dùng kho chứng chỉ riêng: nhập `NeatShield-Root-CA.cer` thủ công (hướng dẫn trong Cài đặt) hoặc bật `security.enterprise_roots.enabled`.
